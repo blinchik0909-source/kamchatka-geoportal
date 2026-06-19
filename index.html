@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Геологические достопримечательности Камчатки</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet.measure -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <header class="sidebar-header">
+        <h1>Геопортал Камчатки</h1>
+        <p class="subtitle">Геологические достопримечательности</p>
+      </header>
+
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="objects">Объекты</button>
+        <button class="tab-btn" data-tab="basemap">Карт. основа</button>
+      </nav>
+
+      <!-- Вкладка: тематические объекты -->
+      <div class="tab-content active" data-tab="objects">
+        <section class="panel">
+          <label class="panel-title" for="search-input">Поиск по названию</label>
+          <div class="search-box">
+            <input id="search-input" type="text" autocomplete="off" placeholder="Например: Авачинский" />
+            <ul id="search-results" class="search-results"></ul>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">Слои</div>
+          <div id="layer-list" class="control-list"></div>
+        </section>
+      </div>
+
+      <!-- Вкладка: картографическая основа (OSM через Overpass) -->
+      <div class="tab-content" data-tab="basemap">
+        <section class="panel">
+          <div class="panel-title">Слои OpenStreetMap</div>
+          <div id="osm-status" class="osm-status"></div>
+          <div id="osm-layer-list" class="control-list"></div>
+          <p class="hint">Данные подгружаются из OpenStreetMap по видимой области карты. Включите слой и приблизьте карту.</p>
+        </section>
+      </div>
+
+      <footer class="sidebar-footer">
+        <span>Инструмент измерений — кнопка <b>линейки</b> в правом верхнем углу карты.</span>
+      </footer>
+    </aside>
+
+    <main id="map"></main>
+  </div>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet.measure -->
+  <script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.js"></script>
+  <!-- osmtogeojson: конвертация ответов Overpass API в GeoJSON -->
+  <script src="https://unpkg.com/osmtogeojson@3.0.0-beta.5/osmtogeojson.js"></script>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

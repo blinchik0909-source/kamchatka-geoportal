@@ -1,0 +1,31 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [159.972, 54.495] },
+      "properties": {
+        "name": "Долина гейзеров",
+        "type": "Гейзерное поле",
+        "description": "Одно из крупнейших гейзерных полей мира, в Кроноцком заповеднике.",
+        "photo": "",
+        "temperature": 95,
+        "status": "Охраняемая территория",
+        "source": "Пример данных"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [159.150, 52.560] },
+      "properties": {
+        "name": "Паратунские источники",
+        "type": "Термальный источник",
+        "description": "Группа горячих источников, популярная курортно-рекреационная зона.",
+        "photo": "",
+        "temperature": 40,
+        "status": "Используется",
+        "source": "Пример данных"
+      }
+    }
+  ]
+}

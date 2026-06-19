@@ -1,0 +1,47 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [158.833, 53.255] },
+      "properties": {
+        "name": "Авачинский вулкан",
+        "type": "Действующий вулкан",
+        "description": "Активный стратовулкан недалеко от Петропавловска-Камчатского, один из самых посещаемых вулканов полуострова.",
+        "photo": "",
+        "height": 2741,
+        "status": "Действующий",
+        "last_eruption": "2001",
+        "source": "Пример данных"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [160.642, 56.057] },
+      "properties": {
+        "name": "Ключевская Сопка",
+        "type": "Действующий вулкан",
+        "description": "Высочайший действующий вулкан Евразии и самый активный на Камчатке.",
+        "photo": "",
+        "height": 4750,
+        "status": "Действующий",
+        "last_eruption": "2023",
+        "source": "Пример данных"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [158.195, 52.453] },
+      "properties": {
+        "name": "Мутновский вулкан",
+        "type": "Действующий вулкан",
+        "description": "Сложный вулканический массив с активными фумаролами и кратерными ледниками.",
+        "photo": "",
+        "height": 2322,
+        "status": "Действующий",
+        "last_eruption": "2000",
+        "source": "Пример данных"
+      }
+    }
+  ]
+}
