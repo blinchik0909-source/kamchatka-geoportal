@@ -82,7 +82,18 @@ window.PORTAL_CONFIG = {
         descriptionField: "подтип",
         photoField: "",
         hideAttributes: true, // скрыть таблицу остальных атрибутов
-        photoSlots: 2         // заготовка под N фотографий
+        photoSlots: 2,        // заготовка под N фотографий
+        // Фото по точному имени объекта (путь относительно корня сайта)
+        photos: {
+          "Халактырский пляж": ["images/halaktyrsky_1.jpg", "images/halaktyrsky_2.jpg"],
+          "Кратер вулкана Мутновский": ["images/mutnovsky_1.png", "images/mutnovsky_2.jpg"],
+          "Дачные источники": ["images/dachnye_1.jpg", "images/dachnye_2.png"],
+          "Кратер вулкана Горелый": ["images/gorely_1.jpg", "images/gorely_2.png"],
+          "Острый толбачик": ["images/ostry_tolbachik_1.webp", "images/ostry_tolbachik_2.jpg"],
+          "Северный прорыв гора Горшкова": ["images/severny_proryv_1.jpg", "images/severny_proryv_2.webp"],
+          "Водопад Спокойный (Вилючинский)": ["images/vodopad_spokoyny_1.png", "images/vodopad_spokoyny_2.jpg"],
+          "Скалы Три Брата": ["images/tri_brata_1.png", "images/tri_brata_2.jpg"]
+        }
       }
     }
   ],
