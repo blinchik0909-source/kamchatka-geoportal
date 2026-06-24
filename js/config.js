@@ -92,7 +92,18 @@ window.PORTAL_CONFIG = {
           "Острый толбачик": ["images/ostry_tolbachik_1.webp", "images/ostry_tolbachik_2.jpg"],
           "Северный прорыв гора Горшкова": ["images/severny_proryv_1.jpg", "images/severny_proryv_2.webp"],
           "Водопад Спокойный (Вилючинский)": ["images/vodopad_spokoyny_1.png", "images/vodopad_spokoyny_2.jpg"],
-          "Скалы Три Брата": ["images/tri_brata_1.png", "images/tri_brata_2.jpg"]
+          "Скалы Три Брата": ["images/tri_brata_1.png", "images/tri_brata_2.jpg"],
+          // Фото из Wikimedia Commons / Википедии (свободные лицензии), по одному снимку
+          "Кальдера вулкана Ксудач": ["images/ksudach.jpg"],
+          "Горный массив Вачкажец": ["images/vachkazhets.jpg"],
+          "Долина Гейзеров": ["images/dolina_geyzerov.jpg"],
+          "Вулкан Опала": ["images/opala.jpg"],
+          "Вулкан Безымянный": ["images/bezymyanny.jpg"],
+          "Вулкан Шивелуч": ["images/shiveluch.jpg"],
+          "Ключевская сопка": ["images/klyuchevskaya.jpg"],
+          "Кратерное озеро вулкана Малый Семячик": ["images/maly_semyachik.jpg"],
+          "Налычевские горячие источники": ["images/nalychevo.jpg"],
+          "Влк Хангар": ["images/khangar.jpg"]
         }
       }
     }
