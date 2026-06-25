@@ -294,16 +294,24 @@
     var slots = pcfg.photoSlots || 0;
     if (slots > 0) {
       var photos = (pcfg.photos && pcfg.photos[title]) || [];
-      html += '<div class="pp-photos">';
-      for (var i = 0; i < slots; i++) {
-        if (photos[i]) {
-          html += '<a class="pp-photo" href="' + escapeHtml(photos[i]) + '" target="_blank" rel="noopener">' +
-                  '<img src="' + escapeHtml(photos[i]) + '" alt="" loading="lazy" /></a>';
-        } else {
-          html += '<div class="pp-photo-slot"><span>Фото ' + (i + 1) + "</span></div>";
+      var notes = (pcfg.notes && pcfg.notes[title]) || [];
+      if (photos.length === 0 && notes[0]) {
+        // Фото нет вовсе — одна пометка на всю карточку
+        html += '<div class="pp-note">' + escapeHtml(notes[0]) + "</div>";
+      } else {
+        html += '<div class="pp-photos">';
+        for (var i = 0; i < slots; i++) {
+          if (photos[i]) {
+            html += '<a class="pp-photo" href="' + escapeHtml(photos[i]) + '" target="_blank" rel="noopener">' +
+                    '<img src="' + escapeHtml(photos[i]) + '" alt="" loading="lazy" /></a>';
+          } else if (notes[i]) {
+            html += '<div class="pp-photo-slot pp-photo-note"><span>' + escapeHtml(notes[i]) + "</span></div>";
+          } else {
+            html += '<div class="pp-photo-slot"><span>Фото ' + (i + 1) + "</span></div>";
+          }
         }
+        html += "</div>";
       }
-      html += "</div>";
     }
 
     html += "</div></div>";
