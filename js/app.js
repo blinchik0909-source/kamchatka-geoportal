@@ -299,14 +299,19 @@
         // Фото нет вовсе — одна пометка на всю карточку
         html += '<div class="pp-note">' + escapeHtml(notes[0]) + "</div>";
       } else {
+        // Если есть хотя бы одно фото — показываем только реальные снимки и
+        // осмысленные пометки (без пустых заготовок). Если фото нет совсем —
+        // оставляем заготовки под слоты.
+        var hasPhoto = photos.length > 0;
+        var count = hasPhoto ? Math.max(photos.length, notes.length) : slots;
         html += '<div class="pp-photos">';
-        for (var i = 0; i < slots; i++) {
+        for (var i = 0; i < count; i++) {
           if (photos[i]) {
             html += '<a class="pp-photo" href="' + escapeHtml(photos[i]) + '" target="_blank" rel="noopener">' +
                     '<img src="' + escapeHtml(photos[i]) + '" alt="" loading="lazy" /></a>';
           } else if (notes[i]) {
             html += '<div class="pp-photo-slot pp-photo-note"><span>' + escapeHtml(notes[i]) + "</span></div>";
-          } else {
+          } else if (!hasPhoto) {
             html += '<div class="pp-photo-slot"><span>Фото ' + (i + 1) + "</span></div>";
           }
         }
