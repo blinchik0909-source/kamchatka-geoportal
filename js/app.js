@@ -368,6 +368,108 @@
     if (visible) ctrl.setVisible(true);
   }
 
+  // Авто-палитра различимых цветов (золотой угол по тону)
+  function genPalette(n) {
+    var out = [];
+    for (var i = 0; i < n; i++) {
+      var h = Math.round((i * 137.508) % 360);
+      var l = 45 + (i % 3) * 8; // лёгкая вариация светлоты
+      out.push("hsl(" + h + ", 62%, " + l + "%)");
+    }
+    return out;
+  }
+
+  function buildPolyPopup(props, pcfg, title) {
+    var labels = (pcfg && pcfg.fieldLabels) || {};
+    var html = '<div class="feature-popup"><div class="pp-body">';
+    html += "<h3>" + escapeHtml(title) + "</h3><table>";
+    Object.keys(props).forEach(function (key) {
+      var val = props[key];
+      if (val === null || val === undefined || val === "" || val === -9999) return;
+      var label = labels[key] || key;
+      html += "<tr><td>" + escapeHtml(label) + "</td><td>" + escapeHtml(val) + "</td></tr>";
+    });
+    html += "</table></div></div>";
+    return html;
+  }
+
+  function addPolygonLayer(layerCfg, geojson, pcfg) {
+    var srcId = "src-" + layerCfg.id;
+    var fillId = "lyr-" + layerCfg.id + "-fill";
+    var lineId = "lyr-" + layerCfg.id + "-line";
+    var visible = layerCfg.visible !== false;
+    var mk = layerCfg.marker || {};
+    var field = mk.colorField;
+
+    // Категории и палитра
+    var present = {};
+    (geojson.features || []).forEach(function (f) {
+      var v = (f.properties || {})[field];
+      if (v !== undefined && v !== null && v !== "") present[v] = true;
+    });
+    var types = Object.keys(present).map(function (k) {
+      var n = Number(k);
+      return isNaN(n) ? k : n;
+    }).sort(function (a, b) { return a > b ? 1 : a < b ? -1 : 0; });
+
+    var palette = (mk.colors && Object.keys(mk.colors).length) ? null : genPalette(types.length);
+    var colors = {};
+    types.forEach(function (t, i) {
+      colors[t] = (mk.colors && mk.colors[t]) || palette[i];
+    });
+
+    var fillColor = ["match", ["get", field]];
+    types.forEach(function (t) { fillColor.push(t, colors[t]); });
+    fillColor.push(mk.defaultColor || "#888888");
+
+    map.addSource(srcId, { type: "geojson", data: geojson });
+    map.addLayer({
+      id: fillId, type: "fill", source: srcId,
+      layout: { visibility: visible ? "visible" : "none" },
+      paint: { "fill-color": fillColor, "fill-opacity": mk.fillOpacity != null ? mk.fillOpacity : 0.55 }
+    });
+    map.addLayer({
+      id: lineId, type: "line", source: srcId,
+      layout: { visibility: visible ? "visible" : "none" },
+      paint: { "line-color": "#ffffff", "line-width": 0.6, "line-opacity": 0.7 }
+    });
+
+    var titleField = (pcfg && pcfg.titleField) || "POLIGON_ID";
+    map.on("click", fillId, function (e) {
+      if (measureActive) return;
+      var p = e.features[0].properties;
+      var title = (layerCfg.name || "Полигон") + (p[titleField] != null ? " #" + p[titleField] : "");
+      showPopup(e.lngLat, buildPolyPopup(p, pcfg, title));
+    });
+    map.on("mouseenter", fillId, function () { if (!measureActive) map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", fillId, function () { if (!measureActive) map.getCanvas().style.cursor = ""; });
+
+    var ctrl = {
+      kind: "polyCat",
+      visible: visible,
+      colorField: field,
+      colors: colors,
+      types: types,
+      legendPrefix: mk.legendPrefix || "",
+      enabledTypes: {},
+      setVisible: function (v) {
+        this.visible = v;
+        map.setLayoutProperty(fillId, "visibility", v ? "visible" : "none");
+        map.setLayoutProperty(lineId, "visibility", v ? "visible" : "none");
+      },
+      setType: function (t, v) {
+        this.enabledTypes[t] = v;
+        var en = this.types.filter(function (x) { return this.enabledTypes[x] !== false; }, this);
+        var filter = en.length === this.types.length ? null
+          : ["match", ["get", this.colorField], en.length ? en : ["\u0000"], true, false];
+        map.setFilter(fillId, filter);
+        map.setFilter(lineId, filter);
+      }
+    };
+    types.forEach(function (t) { ctrl.enabledTypes[t] = true; });
+    overlay[layerCfg.id] = ctrl;
+  }
+
   function loadThematicLayers() {
     return Promise.all(cfg.layers.map(function (layerCfg) {
       return fetch(layerCfg.geojson)
@@ -375,7 +477,8 @@
         .then(function (geojson) {
           var pcfg = layerCfg.popup || POPUP;
           var categorized = !!(layerCfg.marker && layerCfg.marker.shape === "star" && layerCfg.marker.colors);
-          if (categorized) addCategorizedLayer(layerCfg, geojson, pcfg);
+          if (layerCfg.geom === "polygon") addPolygonLayer(layerCfg, geojson, pcfg);
+          else if (categorized) addCategorizedLayer(layerCfg, geojson, pcfg);
           else addSimpleLayer(layerCfg, geojson, pcfg);
         })
         .catch(function (err) {
@@ -393,7 +496,7 @@
     box.innerHTML = "";
     cfg.layers.forEach(function (layerCfg) {
       var ov = overlay[layerCfg.id];
-      var hasLegend = !!(layerCfg.marker && layerCfg.marker.colors);
+      var hasLegend = !!(layerCfg.marker && (layerCfg.marker.colors || layerCfg.marker.colorField));
       var isStar = layerCfg.marker && layerCfg.marker.shape === "star";
 
       var item = document.createElement("div");
@@ -423,7 +526,7 @@
       }
       row.appendChild(span);
 
-      if (hasLegend && ov && (ov.kind === "categorized" || ov.kind === "circleCat")) {
+      if (hasLegend && ov && (ov.kind === "categorized" || ov.kind === "circleCat" || ov.kind === "polyCat")) {
         var caret = document.createElement("span");
         caret.className = "legend-caret";
         caret.textContent = "▸";
@@ -434,7 +537,7 @@
 
         var types = ov.kind === "categorized" ? Object.keys(ov.typeGroups).sort() : ov.types;
         types.forEach(function (type) {
-          var color = (layerCfg.marker.colors && layerCfg.marker.colors[type]) || layerCfg.marker.defaultColor;
+          var color = (ov.colors && ov.colors[type]) || (layerCfg.marker.colors && layerCfg.marker.colors[type]) || layerCfg.marker.defaultColor;
           var li = document.createElement("label");
           li.className = "legend-item";
 
@@ -455,7 +558,7 @@
           }
 
           var tx = document.createElement("span");
-          tx.textContent = type;
+          tx.textContent = (ov.legendPrefix || "") + type;
 
           li.appendChild(cb);
           li.appendChild(sw);

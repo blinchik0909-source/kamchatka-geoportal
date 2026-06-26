@@ -39,6 +39,36 @@ window.PORTAL_CONFIG = {
   // color — цвет маркеров; visible — включён ли слой при загрузке.
   layers: [
     {
+      id: "geology",
+      name: "Геология Камчатки",
+      geojson: "data/geology.geojson",
+      geom: "polygon",
+      color: "#9c7a5b",
+      visible: false,
+      // Полигоны раскрашиваются по основному классу SOIL0 (авто-палитра + легенда).
+      // legendPrefix — подпись перед кодом класса в легенде/чекбоксах.
+      marker: {
+        shape: "polygon",
+        colorField: "SOIL0",
+        legendPrefix: "Класс ",
+        fillOpacity: 0.55,
+        defaultColor: "#888888"
+      },
+      // Поля попапа для полигонов геологии
+      popup: {
+        titleField: "POLIGON_ID",
+        fieldLabels: {
+          POLIGON_ID: "ID полигона",
+          SOIL0: "Класс (осн.)",
+          SOIL1: "Класс (доп. 1)",
+          SOIL2: "Класс (доп. 2)",
+          SOIL3: "Класс (доп. 3)",
+          PARENT1: "Материнская порода 1",
+          PARENT2: "Материнская порода 2"
+        }
+      }
+    },
+    {
       id: "volcanoes",
       name: "Вулканы (GVP)",
       geojson: "data/volcanoes.geojson",
