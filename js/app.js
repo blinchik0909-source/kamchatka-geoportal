@@ -1,66 +1,112 @@
-/* Движок геопортала на Leaflet. Управляется через window.PORTAL_CONFIG (config.js). */
+/* Движок геопортала на MapLibre GL JS. Управляется через window.PORTAL_CONFIG (config.js). */
 (function () {
   "use strict";
 
   var cfg = window.PORTAL_CONFIG;
   var POPUP = cfg.popup || {};
-  var searchIndex = []; // {name, layerId, latlng, layer (feature layer)}
+  var searchIndex = []; // {name, type, lngLat:[lng,lat], layerId, open()}
+  var EMPTY_FC = { type: "FeatureCollection", features: [] };
+  var measureActive = false;
 
-  // --- Карта ---
-  var map = L.map("map", {
-    center: cfg.map.center,
-    zoom: cfg.map.zoom,
-    minZoom: cfg.map.minZoom,
-    maxZoom: cfg.map.maxZoom,
-    zoomControl: true
-  });
+  // ============================================================
+  //  Стиль карты: растровые подложки
+  // ============================================================
+  function basemapTiles(b) {
+    if (b.url.indexOf("{s}") !== -1) {
+      return ["a", "b", "c"].map(function (s) { return b.url.replace("{s}", s); });
+    }
+    return [b.url];
+  }
 
-  // Выделенная панель для слоёв OSM-основы — поверх любой подложки (в т.ч. спутника)
-  map.createPane("osmOverlay");
-  map.getPane("osmOverlay").style.zIndex = 450;
+  var defaultBasemap = cfg.basemaps.find(function (b) { return b.default; }) || cfg.basemaps[0];
 
-  // --- Подложки ---
-  var basemapLayers = {};
+  var style = { version: 8, sources: {}, layers: [] };
   cfg.basemaps.forEach(function (b) {
-    basemapLayers[b.id] = L.tileLayer(b.url, {
-      attribution: b.attribution,
-      maxZoom: b.maxZoom || cfg.map.maxZoom,
-      subdomains: b.url.indexOf("{s}") !== -1 ? "abc" : []
+    style.sources["base-" + b.id] = {
+      type: "raster",
+      tiles: basemapTiles(b),
+      tileSize: 256,
+      maxzoom: b.maxZoom || cfg.map.maxZoom,
+      attribution: b.attribution || ""
+    };
+    style.layers.push({
+      id: "base-" + b.id,
+      type: "raster",
+      source: "base-" + b.id,
+      layout: { visibility: b.id === defaultBasemap.id ? "visible" : "none" }
     });
   });
 
-  var defaultBasemap = cfg.basemaps.find(function (b) { return b.default; }) || cfg.basemaps[0];
-  basemapLayers[defaultBasemap.id].addTo(map);
+  var map = new maplibregl.Map({
+    container: "map",
+    style: style,
+    center: [cfg.map.center[1], cfg.map.center[0]], // MapLibre: [lng, lat]
+    zoom: cfg.map.zoom,
+    minZoom: cfg.map.minZoom,
+    maxZoom: cfg.map.maxZoom,
+    attributionControl: false
+  });
+  map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+  map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
 
-  // Переключатель подложек — стандартная кнопка-контрол в правом верхнем углу
-  var baseMapsByName = {};
-  cfg.basemaps.forEach(function (b) { baseMapsByName[b.name] = basemapLayers[b.id]; });
-  L.control.layers(baseMapsByName, null, { position: "topright", collapsed: true }).addTo(map);
+  // ============================================================
+  //  Переключатель подложек (кастомный контрол)
+  // ============================================================
+  function BasemapControl() {}
+  BasemapControl.prototype.onAdd = function (m) {
+    var container = document.createElement("div");
+    container.className = "maplibregl-ctrl maplibregl-ctrl-group basemap-ctrl";
 
-  // --- Инструмент измерений ---
-  L.control.measure({
-    primaryLengthUnit: "kilometers",
-    secondaryLengthUnit: "meters",
-    primaryAreaUnit: "sqkilometers",
-    activeColor: "#f0883e",
-    completedColor: "#58a6ff",
-    position: "topright"
-  }).addTo(map);
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "basemap-toggle";
+    btn.title = "Подложки";
+    btn.textContent = "🗺";
 
-  // Иконка-звезда (SVG) с яркой заливкой и белой обводкой
-  function makeStarIcon(color, size) {
-    size = size || 24;
-    var html =
-      '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" ' +
-      'style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));">' +
-      '<path d="M12 .8l3.4 6.9 7.6 1.1-5.5 5.36 1.3 7.58L12 18.16 5.2 21.74l1.3-7.58L1 8.8l7.6-1.1z" ' +
-      'fill="' + color + '" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round"/></svg>';
-    return L.divIcon({
-      html: html,
-      className: "star-marker",
-      iconSize: [size, size],
-      iconAnchor: [size / 2, size / 2],
-      popupAnchor: [0, -size / 2]
+    var panel = document.createElement("div");
+    panel.className = "basemap-panel";
+
+    cfg.basemaps.forEach(function (b) {
+      var lab = document.createElement("label");
+      var r = document.createElement("input");
+      r.type = "radio";
+      r.name = "basemap-radio";
+      r.checked = b.id === defaultBasemap.id;
+      r.addEventListener("change", function () {
+        cfg.basemaps.forEach(function (x) {
+          m.setLayoutProperty("base-" + x.id, "visibility", x.id === b.id ? "visible" : "none");
+        });
+      });
+      var sp = document.createElement("span");
+      sp.textContent = b.name;
+      lab.appendChild(r);
+      lab.appendChild(sp);
+      panel.appendChild(lab);
+    });
+
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      container.classList.toggle("open");
+    });
+    document.addEventListener("click", function () { container.classList.remove("open"); });
+
+    container.appendChild(btn);
+    container.appendChild(panel);
+    this._container = container;
+    return container;
+  };
+  BasemapControl.prototype.onRemove = function () {
+    if (this._container && this._container.parentNode) this._container.parentNode.removeChild(this._container);
+  };
+  map.addControl(new BasemapControl(), "top-right");
+
+  // ============================================================
+  //  Утилиты
+  // ============================================================
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
 
@@ -70,102 +116,242 @@
   }
 
   function starSvg(color, size) {
-    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24">' +
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" ' +
+      'style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));">' +
       '<path d="M12 .8l3.4 6.9 7.6 1.1-5.5 5.36 1.3 7.58L12 18.16 5.2 21.74l1.3-7.58L1 8.8l7.6-1.1z" ' +
       'fill="' + color + '" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round"/></svg>';
   }
 
-  // --- Тематические слои ---
-  var overlayLayers = {}; // id -> L.geoJSON | L.featureGroup
-  var layerMeta = {};     // id -> { categorized, parent, typeGroups, enabledTypes }
-  var loadPromises = cfg.layers.map(function (layerCfg) {
-    return fetch(layerCfg.geojson)
-      .then(function (r) {
-        if (!r.ok) throw new Error("HTTP " + r.status + " для " + layerCfg.geojson);
-        return r.json();
-      })
-      .then(function (geojson) {
-        var pcfg = layerCfg.popup || POPUP;
-        var categorized = !!(layerCfg.marker && layerCfg.marker.shape === "star" && layerCfg.marker.colors);
+  function makeStarEl(color, size) {
+    size = size || 24;
+    var el = document.createElement("div");
+    el.className = "star-marker";
+    el.style.width = size + "px";
+    el.style.height = size + "px";
+    el.style.cursor = "pointer";
+    el.innerHTML = starSvg(color, size);
+    return el;
+  }
 
-        if (categorized) {
-          var mk = layerCfg.marker;
-          var parent = L.featureGroup();
-          var typeGroups = {};   // type -> L.featureGroup
-          var enabledTypes = {}; // type -> bool
+  // ============================================================
+  //  Попап достопримечательностей (с фото/пометками)
+  // ============================================================
+  function buildPopupHtml(props, pcfg) {
+    pcfg = pcfg || POPUP;
+    var title = props[pcfg.titleField];
+    var type = props[pcfg.typeField];
+    var desc = props[pcfg.descriptionField];
+    var photo = props[pcfg.photoField];
+    var labels = pcfg.fieldLabels || {};
+    var reserved = [pcfg.titleField, pcfg.typeField, pcfg.descriptionField, pcfg.photoField];
 
-          (geojson.features || []).forEach(function (feature) {
-            if (!feature.geometry || feature.geometry.type !== "Point") return;
-            var c = feature.geometry.coordinates;
-            var latlng = L.latLng(c[1], c[0]);
-            var props = feature.properties || {};
-            var type = props[mk.colorField] || "—";
-            var color = markerColor(mk, props);
-            var marker = L.marker(latlng, { icon: makeStarIcon(color, mk.size) });
-            marker.bindPopup(buildPopupHtml(props, pcfg), { maxWidth: 300 });
+    var html = '<div class="feature-popup">';
+    if (photo) html += '<img src="' + escapeHtml(photo) + '" alt="' + escapeHtml(title || "") + '" loading="lazy" />';
+    html += '<div class="pp-body">';
+    if (type) html += '<span class="pp-type">' + escapeHtml(type) + "</span>";
+    if (title) html += "<h3>" + escapeHtml(title) + "</h3>";
+    if (desc) html += '<p class="pp-desc">' + escapeHtml(desc) + "</p>";
 
-            var name = props[pcfg.titleField];
-            if (name) {
-              searchIndex.push({ name: String(name), type: type, latlng: latlng, layerId: layerCfg.id, layer: marker });
-            }
+    if (!pcfg.hideAttributes) {
+      var rows = "";
+      Object.keys(props).forEach(function (key) {
+        if (reserved.indexOf(key) !== -1) return;
+        var val = props[key];
+        if (val === null || val === undefined || val === "") return;
+        var label = labels[key] || key;
+        rows += "<tr><td>" + escapeHtml(label) + "</td><td>" + escapeHtml(val) + "</td></tr>";
+      });
+      if (rows) html += "<table>" + rows + "</table>";
+    }
 
-            if (!typeGroups[type]) { typeGroups[type] = L.featureGroup(); enabledTypes[type] = true; }
-            typeGroups[type].addLayer(marker);
-          });
-
-          Object.keys(typeGroups).forEach(function (t) { parent.addLayer(typeGroups[t]); });
-
-          overlayLayers[layerCfg.id] = parent;
-          layerMeta[layerCfg.id] = { categorized: true, parent: parent, typeGroups: typeGroups, enabledTypes: enabledTypes };
-          if (layerCfg.visible !== false) parent.addTo(map);
-          return;
+    var slots = pcfg.photoSlots || 0;
+    if (slots > 0) {
+      var photos = (pcfg.photos && pcfg.photos[title]) || [];
+      var notes = (pcfg.notes && pcfg.notes[title]) || [];
+      if (photos.length === 0 && notes[0]) {
+        html += '<div class="pp-note">' + escapeHtml(notes[0]) + "</div>";
+      } else {
+        var hasPhoto = photos.length > 0;
+        var count = hasPhoto ? Math.max(photos.length, notes.length) : slots;
+        html += '<div class="pp-photos">';
+        for (var i = 0; i < count; i++) {
+          if (photos[i]) {
+            html += '<a class="pp-photo" href="' + escapeHtml(photos[i]) + '" target="_blank" rel="noopener">' +
+                    '<img src="' + escapeHtml(photos[i]) + '" alt="" loading="lazy" /></a>';
+          } else if (notes[i]) {
+            html += '<div class="pp-photo-slot pp-photo-note"><span>' + escapeHtml(notes[i]) + "</span></div>";
+          } else if (!hasPhoto) {
+            html += '<div class="pp-photo-slot"><span>Фото ' + (i + 1) + "</span></div>";
+          }
         }
+        html += "</div>";
+      }
+    }
 
-        var gl = L.geoJSON(geojson, {
-          pointToLayer: function (feature, latlng) {
-            return L.circleMarker(latlng, {
-              radius: 8,
-              fillColor: layerCfg.color,
-              color: "#ffffff",
-              weight: 2,
-              opacity: 1,
-              fillOpacity: 0.9
-            });
-          },
-          onEachFeature: function (feature, lyr) {
-            lyr.bindPopup(buildPopupHtml(feature.properties || {}, pcfg), { maxWidth: 300 });
-            var name = (feature.properties || {})[pcfg.titleField];
-            var ll = lyr.getLatLng ? lyr.getLatLng() : (lyr.getBounds && lyr.getBounds().getCenter());
-            if (name && ll) {
-              searchIndex.push({
-                name: String(name),
-                type: (feature.properties || {})[pcfg.typeField] || layerCfg.name,
-                latlng: ll,
-                layerId: layerCfg.id,
-                layer: lyr
-              });
-            }
+    html += "</div></div>";
+    return html;
+  }
+
+  function buildOsmPopup(props) {
+    props = props || {};
+    var title = props.name || props["name:ru"] || "Объект OSM";
+    var html = '<div class="feature-popup"><div class="pp-body">';
+    html += "<h3>" + escapeHtml(title) + "</h3>";
+    var rows = "";
+    Object.keys(props).forEach(function (key) {
+      if (key.charAt(0) === "@" || key === "name") return;
+      var val = props[key];
+      if (val === null || val === undefined || val === "") return;
+      rows += "<tr><td>" + escapeHtml(key) + "</td><td>" + escapeHtml(val) + "</td></tr>";
+    });
+    if (rows) html += "<table>" + rows + "</table>";
+    html += "</div></div>";
+    return html;
+  }
+
+  function showPopup(lngLat, html) {
+    new maplibregl.Popup({ maxWidth: "320px" }).setLngLat(lngLat).setHTML(html).addTo(map);
+  }
+
+  // ============================================================
+  //  Тематические слои
+  // ============================================================
+  var overlay = {}; // id -> control object
+
+  function addSimpleLayer(layerCfg, geojson, pcfg) {
+    var srcId = "src-" + layerCfg.id;
+    var lyrId = "lyr-" + layerCfg.id;
+    var visible = layerCfg.visible !== false;
+
+    map.addSource(srcId, { type: "geojson", data: geojson });
+    map.addLayer({
+      id: lyrId, type: "circle", source: srcId,
+      layout: { visibility: visible ? "visible" : "none" },
+      paint: {
+        "circle-radius": 7,
+        "circle-color": layerCfg.color,
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 2
+      }
+    });
+
+    map.on("click", lyrId, function (e) {
+      if (measureActive) return;
+      var f = e.features[0];
+      showPopup(e.lngLat, buildPopupHtml(f.properties, pcfg));
+    });
+    map.on("mouseenter", lyrId, function () { if (!measureActive) map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", lyrId, function () { if (!measureActive) map.getCanvas().style.cursor = ""; });
+
+    (geojson.features || []).forEach(function (feature) {
+      if (!feature.geometry || feature.geometry.type !== "Point") return;
+      var props = feature.properties || {};
+      var name = props[pcfg.titleField];
+      if (!name) return;
+      var lngLat = feature.geometry.coordinates;
+      var html = buildPopupHtml(props, pcfg);
+      searchIndex.push({
+        name: String(name),
+        type: props[pcfg.typeField] || layerCfg.name,
+        lngLat: lngLat,
+        layerId: layerCfg.id,
+        open: function () { showPopup(lngLat, html); }
+      });
+    });
+
+    overlay[layerCfg.id] = {
+      kind: "simple",
+      visible: visible,
+      setVisible: function (v) {
+        this.visible = v;
+        map.setLayoutProperty(lyrId, "visibility", v ? "visible" : "none");
+      }
+    };
+  }
+
+  function addCategorizedLayer(layerCfg, geojson, pcfg) {
+    var mk = layerCfg.marker;
+    var visible = layerCfg.visible !== false;
+    var typeGroups = {};   // type -> [markers]
+    var enabledTypes = {}; // type -> bool
+
+    (geojson.features || []).forEach(function (feature) {
+      if (!feature.geometry || feature.geometry.type !== "Point") return;
+      var coords = feature.geometry.coordinates;
+      var props = feature.properties || {};
+      var type = props[mk.colorField] || "—";
+      var color = markerColor(mk, props);
+
+      var popup = new maplibregl.Popup({ offset: (mk.size ? mk.size / 2 : 12), maxWidth: "320px" })
+        .setHTML(buildPopupHtml(props, pcfg));
+      var marker = new maplibregl.Marker({ element: makeStarEl(color, mk.size), anchor: "center" })
+        .setLngLat(coords)
+        .setPopup(popup);
+
+      if (!typeGroups[type]) { typeGroups[type] = []; enabledTypes[type] = true; }
+      typeGroups[type].push(marker);
+
+      var name = props[pcfg.titleField];
+      if (name) {
+        searchIndex.push({
+          name: String(name), type: type, lngLat: coords, layerId: layerCfg.id,
+          open: function () {
+            marker.addTo(map);
+            if (!marker.getPopup().isOpen()) marker.togglePopup();
           }
         });
-        overlayLayers[layerCfg.id] = gl;
-        if (layerCfg.visible !== false) gl.addTo(map);
-      })
-      .catch(function (err) {
-        console.error("Не удалось загрузить слой", layerCfg.id, err);
-        overlayLayers[layerCfg.id] = null;
-      });
-  });
+      }
+    });
 
-  Promise.all(loadPromises).then(function () {
-    buildLayerControls();
-  });
+    var ctrl = {
+      kind: "categorized",
+      visible: visible,
+      typeGroups: typeGroups,
+      enabledTypes: enabledTypes,
+      marker: mk,
+      setVisible: function (v) {
+        this.visible = v;
+        Object.keys(typeGroups).forEach(function (t) {
+          typeGroups[t].forEach(function (m) {
+            if (v && enabledTypes[t] !== false) m.addTo(map); else m.remove();
+          });
+        });
+      },
+      setType: function (t, v) {
+        enabledTypes[t] = v;
+        if (!this.visible) return;
+        typeGroups[t].forEach(function (m) { if (v) m.addTo(map); else m.remove(); });
+      }
+    };
+    overlay[layerCfg.id] = ctrl;
+    if (visible) ctrl.setVisible(true);
+  }
 
-  // ---------- UI: слои ----------
+  function loadThematicLayers() {
+    return Promise.all(cfg.layers.map(function (layerCfg) {
+      return fetch(layerCfg.geojson)
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status + " для " + layerCfg.geojson); return r.json(); })
+        .then(function (geojson) {
+          var pcfg = layerCfg.popup || POPUP;
+          var categorized = !!(layerCfg.marker && layerCfg.marker.shape === "star" && layerCfg.marker.colors);
+          if (categorized) addCategorizedLayer(layerCfg, geojson, pcfg);
+          else addSimpleLayer(layerCfg, geojson, pcfg);
+        })
+        .catch(function (err) {
+          console.error("Не удалось загрузить слой", layerCfg.id, err);
+          overlay[layerCfg.id] = null;
+        });
+    }));
+  }
+
+  // ============================================================
+  //  UI: список тематических слоёв с легендой
+  // ============================================================
   function buildLayerControls() {
     var box = document.getElementById("layer-list");
     box.innerHTML = "";
     cfg.layers.forEach(function (layerCfg) {
-      var gl = overlayLayers[layerCfg.id];
+      var ov = overlay[layerCfg.id];
       var hasLegend = !!(layerCfg.marker && layerCfg.marker.shape === "star" && layerCfg.marker.colors);
 
       var item = document.createElement("div");
@@ -176,19 +362,17 @@
 
       var input = document.createElement("input");
       input.type = "checkbox";
-      input.checked = gl ? map.hasLayer(gl) : false;
-      input.disabled = !gl;
+      input.checked = ov ? ov.visible : false;
+      input.disabled = !ov;
       input.addEventListener("change", function () {
-        if (!gl) return;
-        if (input.checked) gl.addTo(map); else map.removeLayer(gl);
+        if (ov) ov.setVisible(input.checked);
       });
 
       var span = document.createElement("span");
       span.className = "layer-name";
-      span.textContent = layerCfg.name + (gl ? "" : " (ошибка загрузки)");
+      span.textContent = layerCfg.name + (ov ? "" : " (ошибка загрузки)");
 
       row.appendChild(input);
-      // Категоризированный слой не имеет одного цвета — кружок не показываем
       if (!hasLegend) {
         var swatch = document.createElement("span");
         swatch.className = "swatch";
@@ -197,8 +381,7 @@
       }
       row.appendChild(span);
 
-      var meta = layerMeta[layerCfg.id];
-      if (hasLegend && meta && meta.categorized) {
+      if (hasLegend && ov && ov.kind === "categorized") {
         var caret = document.createElement("span");
         caret.className = "legend-caret";
         caret.textContent = "▸";
@@ -207,19 +390,16 @@
         var legend = document.createElement("div");
         legend.className = "layer-legend";
 
-        Object.keys(meta.typeGroups).sort().forEach(function (type) {
+        Object.keys(ov.typeGroups).sort().forEach(function (type) {
           var color = (layerCfg.marker.colors && layerCfg.marker.colors[type]) || layerCfg.marker.defaultColor;
           var li = document.createElement("label");
           li.className = "legend-item";
 
           var cb = document.createElement("input");
           cb.type = "checkbox";
-          cb.checked = meta.enabledTypes[type] !== false;
+          cb.checked = ov.enabledTypes[type] !== false;
           cb.addEventListener("change", function () {
-            meta.enabledTypes[type] = cb.checked;
-            var grp = meta.typeGroups[type];
-            if (cb.checked) meta.parent.addLayer(grp);
-            else meta.parent.removeLayer(grp);
+            ov.setType(type, cb.checked);
           });
 
           var sw = document.createElement("span");
@@ -256,74 +436,9 @@
     });
   }
 
-  // ---------- Попап ----------
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-    });
-  }
-
-  function buildPopupHtml(props, pcfg) {
-    pcfg = pcfg || POPUP;
-    var title = props[pcfg.titleField];
-    var type = props[pcfg.typeField];
-    var desc = props[pcfg.descriptionField];
-    var photo = props[pcfg.photoField];
-    var labels = pcfg.fieldLabels || {};
-    var reserved = [pcfg.titleField, pcfg.typeField, pcfg.descriptionField, pcfg.photoField];
-
-    var html = '<div class="feature-popup">';
-    if (photo) html += '<img src="' + escapeHtml(photo) + '" alt="' + escapeHtml(title || "") + '" loading="lazy" />';
-    html += '<div class="pp-body">';
-    if (type) html += '<span class="pp-type">' + escapeHtml(type) + "</span>";
-    if (title) html += "<h3>" + escapeHtml(title) + "</h3>";
-    if (desc) html += '<p class="pp-desc">' + escapeHtml(desc) + "</p>";
-
-    if (!pcfg.hideAttributes) {
-      var rows = "";
-      Object.keys(props).forEach(function (key) {
-        if (reserved.indexOf(key) !== -1) return;
-        var val = props[key];
-        if (val === null || val === undefined || val === "") return;
-        var label = labels[key] || key;
-        rows += "<tr><td>" + escapeHtml(label) + "</td><td>" + escapeHtml(val) + "</td></tr>";
-      });
-      if (rows) html += "<table>" + rows + "</table>";
-    }
-
-    var slots = pcfg.photoSlots || 0;
-    if (slots > 0) {
-      var photos = (pcfg.photos && pcfg.photos[title]) || [];
-      var notes = (pcfg.notes && pcfg.notes[title]) || [];
-      if (photos.length === 0 && notes[0]) {
-        // Фото нет вовсе — одна пометка на всю карточку
-        html += '<div class="pp-note">' + escapeHtml(notes[0]) + "</div>";
-      } else {
-        // Если есть хотя бы одно фото — показываем только реальные снимки и
-        // осмысленные пометки (без пустых заготовок). Если фото нет совсем —
-        // оставляем заготовки под слоты.
-        var hasPhoto = photos.length > 0;
-        var count = hasPhoto ? Math.max(photos.length, notes.length) : slots;
-        html += '<div class="pp-photos">';
-        for (var i = 0; i < count; i++) {
-          if (photos[i]) {
-            html += '<a class="pp-photo" href="' + escapeHtml(photos[i]) + '" target="_blank" rel="noopener">' +
-                    '<img src="' + escapeHtml(photos[i]) + '" alt="" loading="lazy" /></a>';
-          } else if (notes[i]) {
-            html += '<div class="pp-photo-slot pp-photo-note"><span>' + escapeHtml(notes[i]) + "</span></div>";
-          } else if (!hasPhoto) {
-            html += '<div class="pp-photo-slot"><span>Фото ' + (i + 1) + "</span></div>";
-          }
-        }
-        html += "</div>";
-      }
-    }
-
-    html += "</div></div>";
-    return html;
-  }
-
-  // ---------- Поиск ----------
+  // ============================================================
+  //  Поиск
+  // ============================================================
   var input = document.getElementById("search-input");
   var results = document.getElementById("search-results");
 
@@ -338,13 +453,10 @@
       var li = document.createElement("li");
       li.innerHTML = escapeHtml(it.name) + "<small>" + escapeHtml(it.type) + "</small>";
       li.addEventListener("click", function () {
-        var gl = overlayLayers[it.layerId];
-        if (gl && !map.hasLayer(gl)) {
-          gl.addTo(map);
-          buildLayerControls();
-        }
-        map.flyTo(it.latlng, Math.max(map.getZoom(), 11));
-        it.layer.openPopup();
+        var ov = overlay[it.layerId];
+        if (ov && !ov.visible) { ov.setVisible(true); buildLayerControls(); }
+        map.flyTo({ center: it.lngLat, zoom: Math.max(map.getZoom(), 11) });
+        it.open();
         results.innerHTML = "";
         input.value = it.name;
       });
@@ -356,7 +468,9 @@
     if (!e.target.closest(".search-box")) results.innerHTML = "";
   });
 
-  // ---------- Вкладки сайдбара ----------
+  // ============================================================
+  //  Вкладки сайдбара
+  // ============================================================
   var tabBtns = document.querySelectorAll(".tab-btn");
   var tabContents = document.querySelectorAll(".tab-content");
   tabBtns.forEach(function (btn) {
@@ -374,33 +488,48 @@
   // ============================================================
   var osmCfg = cfg.osmLayers || [];
   var osmEndpoint = cfg.overpassEndpoint || "https://overpass-api.de/api/interpreter";
-  var osmState = {}; // id -> {enabled, group, controller, statusEl}
+  var osmState = {}; // id -> {enabled, statusEl, controller, added}
 
-  function osmStyle(layerCfg) {
+  function osmLayerDefs(layerCfg) {
+    var src = "osmsrc-" + layerCfg.id;
+    var color = layerCfg.color;
     if (layerCfg.geom === "line") {
-      return { color: layerCfg.color, weight: 2, opacity: 0.9 };
+      return [{ id: "osmline-" + layerCfg.id, type: "line", source: src,
+        paint: { "line-color": color, "line-width": 2, "line-opacity": 0.9 } }];
     }
     if (layerCfg.geom === "polygon") {
-      return { color: layerCfg.color, weight: 1, opacity: 0.9, fillColor: layerCfg.color, fillOpacity: 0.25 };
+      return [
+        { id: "osmfill-" + layerCfg.id, type: "fill", source: src,
+          paint: { "fill-color": color, "fill-opacity": 0.25 } },
+        { id: "osmline-" + layerCfg.id, type: "line", source: src,
+          paint: { "line-color": color, "line-width": 1, "line-opacity": 0.9 } }
+      ];
     }
-    return {};
+    return [{ id: "osmcirc-" + layerCfg.id, type: "circle", source: src,
+      paint: { "circle-radius": 6, "circle-color": color, "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } }];
   }
 
-  function buildOsmPopup(props) {
-    props = props || {};
-    var title = props.name || props["name:ru"] || "Объект OSM";
-    var html = '<div class="feature-popup"><div class="pp-body">';
-    html += "<h3>" + escapeHtml(title) + "</h3>";
-    var rows = "";
-    Object.keys(props).forEach(function (key) {
-      if (key.charAt(0) === "@" || key === "name") return;
-      var val = props[key];
-      if (val === null || val === undefined || val === "") return;
-      rows += "<tr><td>" + escapeHtml(key) + "</td><td>" + escapeHtml(val) + "</td></tr>";
+  function ensureOsmLayers(layerCfg) {
+    var src = "osmsrc-" + layerCfg.id;
+    if (map.getSource(src)) return;
+    map.addSource(src, { type: "geojson", data: EMPTY_FC });
+    osmLayerDefs(layerCfg).forEach(function (def) {
+      map.addLayer(def);
+      map.on("click", def.id, function (e) {
+        if (measureActive) return;
+        showPopup(e.lngLat, buildOsmPopup(e.features[0].properties));
+      });
+      map.on("mouseenter", def.id, function () { if (!measureActive) map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", def.id, function () { if (!measureActive) map.getCanvas().style.cursor = ""; });
     });
-    if (rows) html += "<table>" + rows + "</table>";
-    html += "</div></div>";
-    return html;
+  }
+
+  function removeOsmLayers(layerCfg) {
+    var src = "osmsrc-" + layerCfg.id;
+    osmLayerDefs(layerCfg).forEach(function (def) {
+      if (map.getLayer(def.id)) map.removeLayer(def.id);
+    });
+    if (map.getSource(src)) map.removeSource(src);
   }
 
   function setOsmStatus(layerCfg, text) {
@@ -411,9 +540,11 @@
   function fetchOsmLayer(layerCfg) {
     var st = osmState[layerCfg.id];
     if (!st || !st.enabled) return;
+    var src = map.getSource("osmsrc-" + layerCfg.id);
+    if (!src) return;
 
     if (map.getZoom() < layerCfg.minZoom) {
-      st.group.clearLayers();
+      src.setData(EMPTY_FC);
       setOsmStatus(layerCfg, "приблизьте (зум " + layerCfg.minZoom + "+)");
       return;
     }
@@ -432,29 +563,12 @@
       body: "data=" + encodeURIComponent(ql),
       signal: st.controller ? st.controller.signal : undefined
     })
-      .then(function (r) {
-        if (!r.ok) throw new Error("Overpass HTTP " + r.status);
-        return r.json();
-      })
+      .then(function (r) { if (!r.ok) throw new Error("Overpass HTTP " + r.status); return r.json(); })
       .then(function (osm) {
         if (!st.enabled) return;
         var geojson = window.osmtogeojson(osm);
-        st.group.clearLayers();
-        var gl = L.geoJSON(geojson, {
-          pane: "osmOverlay",
-          style: osmStyle(layerCfg),
-          pointToLayer: function (feature, latlng) {
-            return L.circleMarker(latlng, {
-              pane: "osmOverlay",
-              radius: 6, fillColor: layerCfg.color, color: "#fff",
-              weight: 1.5, opacity: 1, fillOpacity: 0.9
-            });
-          },
-          onEachFeature: function (feature, lyr) {
-            lyr.bindPopup(buildOsmPopup(feature.properties), { maxWidth: 300 });
-          }
-        });
-        st.group.addLayer(gl);
+        var s = map.getSource("osmsrc-" + layerCfg.id);
+        if (s) s.setData(geojson);
         setOsmStatus(layerCfg, (geojson.features ? geojson.features.length : 0) + " об.");
       })
       .catch(function (err) {
@@ -469,24 +583,22 @@
     if (!box) return;
     box.innerHTML = "";
     osmCfg.forEach(function (layerCfg) {
-      var group = L.layerGroup();
-      osmState[layerCfg.id] = { enabled: false, group: group, controller: null, statusEl: null };
+      osmState[layerCfg.id] = { enabled: false, statusEl: null, controller: null };
 
       var label = document.createElement("label");
       label.className = "control-item";
 
-      var input = document.createElement("input");
-      input.type = "checkbox";
-      input.addEventListener("change", function () {
+      var inp = document.createElement("input");
+      inp.type = "checkbox";
+      inp.addEventListener("change", function () {
         var st = osmState[layerCfg.id];
-        st.enabled = input.checked;
-        if (input.checked) {
-          group.addTo(map);
+        st.enabled = inp.checked;
+        if (inp.checked) {
+          ensureOsmLayers(layerCfg);
           fetchOsmLayer(layerCfg);
         } else {
           if (st.controller) st.controller.abort();
-          map.removeLayer(group);
-          group.clearLayers();
+          removeOsmLayers(layerCfg);
           setOsmStatus(layerCfg, "");
         }
       });
@@ -502,7 +614,7 @@
       var status = document.createElement("small");
       status.className = "osm-item-status";
 
-      label.appendChild(input);
+      label.appendChild(inp);
       label.appendChild(swatch);
       label.appendChild(span);
       label.appendChild(status);
@@ -512,16 +624,123 @@
     });
   }
 
-  buildOsmControls();
+  // ============================================================
+  //  Инструмент измерений (расстояние / площадь) на Turf.js
+  // ============================================================
+  function setupMeasure() {
+    map.addSource("measure", { type: "geojson", data: EMPTY_FC });
+    map.addLayer({
+      id: "measure-fill", type: "fill", source: "measure",
+      filter: ["==", "$type", "Polygon"],
+      paint: { "fill-color": "#f0883e", "fill-opacity": 0.15 }
+    });
+    map.addLayer({
+      id: "measure-line", type: "line", source: "measure",
+      filter: ["==", "$type", "LineString"],
+      paint: { "line-color": "#f0883e", "line-width": 3 }
+    });
+    map.addLayer({
+      id: "measure-pts", type: "circle", source: "measure",
+      filter: ["==", "$type", "Point"],
+      paint: { "circle-radius": 4, "circle-color": "#ffffff", "circle-stroke-color": "#f0883e", "circle-stroke-width": 2 }
+    });
 
-  // Перезагрузка включённых OSM-слоёв при перемещении карты (с дебаунсом)
-  var osmMoveTimer = null;
-  map.on("moveend", function () {
-    if (osmMoveTimer) clearTimeout(osmMoveTimer);
-    osmMoveTimer = setTimeout(function () {
-      osmCfg.forEach(function (layerCfg) {
-        if (osmState[layerCfg.id] && osmState[layerCfg.id].enabled) fetchOsmLayer(layerCfg);
-      });
-    }, 700);
+    var pts = [];
+    var readout = document.createElement("div");
+    readout.className = "measure-readout";
+    readout.style.display = "none";
+    document.getElementById("map").appendChild(readout);
+
+    function fmtLen(km) {
+      return km < 1 ? (km * 1000).toFixed(0) + " м" : km.toFixed(2) + " км";
+    }
+    function fmtArea(m2) {
+      return m2 < 1e6 ? m2.toFixed(0) + " м²" : (m2 / 1e6).toFixed(2) + " км²";
+    }
+
+    function refresh() {
+      var feats = pts.map(function (p) { return { type: "Feature", geometry: { type: "Point", coordinates: p } }; });
+      if (pts.length >= 2) feats.push({ type: "Feature", geometry: { type: "LineString", coordinates: pts } });
+      if (pts.length >= 3) {
+        feats.push({ type: "Feature", geometry: { type: "Polygon", coordinates: [pts.concat([pts[0]])] } });
+      }
+      map.getSource("measure").setData({ type: "FeatureCollection", features: feats });
+
+      if (pts.length >= 2) {
+        var km = turf.length(turf.lineString(pts), { units: "kilometers" });
+        var txt = "Длина: <b>" + fmtLen(km) + "</b>";
+        if (pts.length >= 3) {
+          var area = turf.area(turf.polygon([pts.concat([pts[0]])]));
+          txt += " · Площадь: <b>" + fmtArea(area) + "</b>";
+        }
+        readout.innerHTML = txt + "<br><small>клик — точка · двойной клик — сброс</small>";
+      } else {
+        readout.innerHTML = "Кликайте по карте, чтобы измерить.<br><small>двойной клик — сброс</small>";
+      }
+      readout.style.display = "block";
+    }
+
+    function onClick(e) { pts.push([e.lngLat.lng, e.lngLat.lat]); refresh(); }
+    function onDbl(e) { e.preventDefault(); pts = []; map.getSource("measure").setData(EMPTY_FC); refresh(); }
+
+    var btn;
+    function activate(on) {
+      measureActive = on;
+      if (btn) btn.classList.toggle("active", on);
+      if (on) {
+        map.getCanvas().style.cursor = "crosshair";
+        map.on("click", onClick);
+        map.on("dblclick", onDbl);
+        map.doubleClickZoom.disable();
+        pts = [];
+        refresh();
+      } else {
+        map.getCanvas().style.cursor = "";
+        map.off("click", onClick);
+        map.off("dblclick", onDbl);
+        map.doubleClickZoom.enable();
+        pts = [];
+        map.getSource("measure").setData(EMPTY_FC);
+        readout.style.display = "none";
+      }
+    }
+
+    function MeasureControl() {}
+    MeasureControl.prototype.onAdd = function () {
+      var c = document.createElement("div");
+      c.className = "maplibregl-ctrl maplibregl-ctrl-group";
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "measure-btn";
+      btn.title = "Измерить расстояние / площадь";
+      btn.textContent = "📏";
+      btn.addEventListener("click", function () { activate(!measureActive); });
+      c.appendChild(btn);
+      this._container = c;
+      return c;
+    };
+    MeasureControl.prototype.onRemove = function () {
+      if (this._container && this._container.parentNode) this._container.parentNode.removeChild(this._container);
+    };
+    map.addControl(new MeasureControl(), "top-right");
+  }
+
+  // ============================================================
+  //  Инициализация после загрузки карты
+  // ============================================================
+  map.on("load", function () {
+    loadThematicLayers().then(buildLayerControls);
+    buildOsmControls();
+    setupMeasure();
+
+    var osmMoveTimer = null;
+    map.on("moveend", function () {
+      if (osmMoveTimer) clearTimeout(osmMoveTimer);
+      osmMoveTimer = setTimeout(function () {
+        osmCfg.forEach(function (layerCfg) {
+          if (osmState[layerCfg.id] && osmState[layerCfg.id].enabled) fetchOsmLayer(layerCfg);
+        });
+      }, 700);
+    });
   });
 })();

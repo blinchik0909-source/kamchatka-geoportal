@@ -183,11 +183,73 @@ html, body {
 }
 
 /* Map */
-#map { flex: 1; height: 100%; }
+#map { flex: 1; height: 100%; position: relative; }
 
-/* Звёздные маркеры (divIcon) — без фона и рамки */
+/* Звёздные маркеры (HTML-маркеры MapLibre) — без фона и рамки */
 .star-marker { background: transparent; border: none; }
 .star-marker svg { display: block; }
+
+/* Переключатель подложек (кастомный контрол MapLibre) */
+.basemap-ctrl { position: relative; }
+.basemap-toggle {
+  width: 29px;
+  height: 29px;
+  font-size: 16px;
+  line-height: 29px;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+}
+.basemap-panel {
+  display: none;
+  position: absolute;
+  top: 0;
+  right: 34px;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+.basemap-ctrl.open .basemap-panel { display: block; }
+.basemap-panel label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 13px;
+  color: #1d2c3d;
+  cursor: pointer;
+}
+
+/* Кнопка измерений */
+.measure-btn {
+  width: 29px;
+  height: 29px;
+  font-size: 15px;
+  line-height: 29px;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+}
+.measure-btn.active { background: #f0883e; }
+
+/* Информер измерений */
+.measure-readout {
+  position: absolute;
+  left: 10px;
+  bottom: 26px;
+  z-index: 5;
+  background: rgba(15, 23, 32, 0.9);
+  color: #e6edf3;
+  padding: 8px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.measure-readout small { color: #93a4b5; }
 
 /* Слой с раскрываемой легендой */
 .layer-item { display: flex; flex-direction: column; }
@@ -223,8 +285,26 @@ html, body {
 
 .layer-legend .legend-item svg { flex: 0 0 auto; }
 
-/* Popup */
-.leaflet-popup-content { margin: 0; width: 280px !important; }
+/* Popup (MapLibre) */
+.maplibregl-popup-content {
+  padding: 0;
+  width: 280px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+}
+.maplibregl-popup-close-button {
+  width: 22px;
+  height: 22px;
+  font-size: 17px;
+  line-height: 22px;
+  color: #fff;
+  background: rgba(0,0,0,0.35);
+  border-radius: 50%;
+  margin: 4px;
+  z-index: 2;
+}
+.maplibregl-popup-close-button:hover { background: rgba(0,0,0,0.55); }
 
 .feature-popup img {
   width: 100%;
