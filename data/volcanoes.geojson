@@ -3,44 +3,2495 @@
   "features": [
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [158.833, 53.255] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          155.25,
+          50.27
+        ]
+      },
       "properties": {
-        "name": "Авачинский вулкан",
+        "name": "Пик Фусса",
         "type": "Действующий вулкан",
-        "description": "Активный стратовулкан недалеко от Петропавловска-Камчатского, один из самых посещаемых вулканов полуострова.",
+        "description": "",
         "photo": "",
-        "height": 2741,
         "status": "Действующий",
-        "last_eruption": "2001",
-        "source": "Пример данных"
+        "gvp_name": "Fuss Peak",
+        "gvp_id": 290340,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
       }
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [160.642, 56.057] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          155.458,
+          50.325
+        ]
+      },
       "properties": {
-        "name": "Ключевская Сопка",
+        "name": "Чикурачки",
         "type": "Действующий вулкан",
-        "description": "Высочайший действующий вулкан Евразии и самый активный на Камчатке.",
+        "description": "",
         "photo": "",
-        "height": 4750,
         "status": "Действующий",
-        "last_eruption": "2023",
-        "source": "Пример данных"
+        "gvp_name": "Chikurachki",
+        "gvp_id": 290360,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
       }
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [158.195, 52.453] },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          155.97,
+          50.55
+        ]
+      },
       "properties": {
-        "name": "Мутновский вулкан",
+        "name": "Хребет Вернадского",
         "type": "Действующий вулкан",
-        "description": "Сложный вулканический массив с активными фумаролами и кратерными ледниками.",
+        "description": "",
         "photo": "",
-        "height": 2322,
         "status": "Действующий",
-        "last_eruption": "2000",
-        "source": "Пример данных"
+        "gvp_name": "Vernadskii Ridge",
+        "gvp_id": 290370,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          156.02,
+          50.68
+        ]
+      },
+      "properties": {
+        "name": "Эбеко",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Ebeko",
+        "gvp_id": 290380,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          155.55,
+          50.858
+        ]
+      },
+      "properties": {
+        "name": "Алаид",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Alaid",
+        "gvp_id": 290390,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          156.72,
+          51.1
+        ]
+      },
+      "properties": {
+        "name": "Машковцева",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Mashkovtsev",
+        "gvp_id": 300000,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          156.87,
+          51.3
+        ]
+      },
+      "properties": {
+        "name": "Камбальный",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Kambalny",
+        "gvp_id": 300010,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          156.75,
+          51.357
+        ]
+      },
+      "properties": {
+        "name": "Кошелева",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Koshelev",
+        "gvp_id": 300020,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          156.6,
+          51.57
+        ]
+      },
+      "properties": {
+        "name": "Явинский",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Yavinsky",
+        "gvp_id": 300020,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          156.97,
+          51.45
+        ]
+      },
+      "properties": {
+        "name": "Дикий Гребень",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Diky Greben",
+        "gvp_id": 300022,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.12,
+          51.45
+        ]
+      },
+      "properties": {
+        "name": "Курильское озеро (кальдера)",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Kurile Lake",
+        "gvp_id": 300023,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.2,
+          51.49
+        ]
+      },
+      "properties": {
+        "name": "Ильинский",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Ilyinsky",
+        "gvp_id": 300030,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.323,
+          51.57
+        ]
+      },
+      "properties": {
+        "name": "Желтовский",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Zheltovsky",
+        "gvp_id": 300040,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.35,
+          51.65
+        ]
+      },
+      "properties": {
+        "name": "Келля",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Kell",
+        "gvp_id": 300040,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.27,
+          51.75
+        ]
+      },
+      "properties": {
+        "name": "Беленькая",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Belenkaya",
+        "gvp_id": 300042,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.53,
+          51.8
+        ]
+      },
+      "properties": {
+        "name": "Ксудач",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Ksudach",
+        "gvp_id": 300050,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.38,
+          51.88
+        ]
+      },
+      "properties": {
+        "name": "Озерной",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Ozernoy",
+        "gvp_id": 300051,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.53,
+          52.02
+        ]
+      },
+      "properties": {
+        "name": "Ольховая вулканическая группа",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Olkoviy Volcanic Group",
+        "gvp_id": 300052,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.703,
+          52.063
+        ]
+      },
+      "properties": {
+        "name": "Ходутка",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Khodutka",
+        "gvp_id": 300052,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.849,
+          52.113
+        ]
+      },
+      "properties": {
+        "name": "Пиратковский",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Piratkovsky",
+        "gvp_id": 300054,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.322,
+          52.146
+        ]
+      },
+      "properties": {
+        "name": "Останец",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Ostanets",
+        "gvp_id": 300055,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.428,
+          52.22
+        ]
+      },
+      "properties": {
+        "name": "Отдельный",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Otdelniy",
+        "gvp_id": 300056,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.787,
+          52.263
+        ]
+      },
+      "properties": {
+        "name": "Голая",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Golaya",
+        "gvp_id": 300056,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.827,
+          52.355
+        ]
+      },
+      "properties": {
+        "name": "Асача",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Asacha",
+        "gvp_id": 300058,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.93,
+          52.43
+        ]
+      },
+      "properties": {
+        "name": "Высокий",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Visokiy",
+        "gvp_id": 300059,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.195,
+          52.453
+        ]
+      },
+      "properties": {
+        "name": "Мутновский",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Mutnovsky",
+        "gvp_id": 300060,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.03,
+          52.558
+        ]
+      },
+      "properties": {
+        "name": "Горелый",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Gorely",
+        "gvp_id": 300070,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.335,
+          52.543
+        ]
+      },
+      "properties": {
+        "name": "Опала",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Opala",
+        "gvp_id": 300080,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.02,
+          52.57
+        ]
+      },
+      "properties": {
+        "name": "Безымянный конус (GVP 300080)",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Unnamed",
+        "gvp_id": 300080,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.58,
+          52.63
+        ]
+      },
+      "properties": {
+        "name": "Толмачёв дол",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Tolmachev Dol",
+        "gvp_id": 300082,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.28,
+          52.7
+        ]
+      },
+      "properties": {
+        "name": "Вилючинский (Вилючик)",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Vilyuchik",
+        "gvp_id": 300083,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.27,
+          52.823
+        ]
+      },
+      "properties": {
+        "name": "Бархатная сопка",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Barkhatnaya Sopka",
+        "gvp_id": 300084,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.52,
+          52.92
+        ]
+      },
+      "properties": {
+        "name": "Безымянный конус (GVP 300084)",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Unnamed",
+        "gvp_id": 300084,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.3,
+          52.88
+        ]
+      },
+      "properties": {
+        "name": "Безымянный конус (GVP 300086)",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Unnamed",
+        "gvp_id": 300086,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.78,
+          52.9
+        ]
+      },
+      "properties": {
+        "name": "Больше-Банная",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Bolshe-Bannaya",
+        "gvp_id": 300087,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.688,
+          53.32
+        ]
+      },
+      "properties": {
+        "name": "Корякский",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Koryaksky",
+        "gvp_id": 300090,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.83,
+          53.255
+        ]
+      },
+      "properties": {
+        "name": "Авачинский",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Avachinsky",
+        "gvp_id": 300100,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.922,
+          53.637
+        ]
+      },
+      "properties": {
+        "name": "Дзензурский",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Dzenzursky",
+        "gvp_id": 300110,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.147,
+          53.59
+        ]
+      },
+      "properties": {
+        "name": "Жупановский",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Zhupanovsky",
+        "gvp_id": 300120,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.45,
+          53.75
+        ]
+      },
+      "properties": {
+        "name": "Веер",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Veer",
+        "gvp_id": 300120,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.05,
+          53.83
+        ]
+      },
+      "properties": {
+        "name": "Костакан",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Kostakan",
+        "gvp_id": 300122,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.07,
+          53.905
+        ]
+      },
+      "properties": {
+        "name": "Бакенинг",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Bakening",
+        "gvp_id": 300123,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.385,
+          53.905
+        ]
+      },
+      "properties": {
+        "name": "Заварицкого",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Zavaritsky",
+        "gvp_id": 300124,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.45,
+          53.98
+        ]
+      },
+      "properties": {
+        "name": "Академии Наук",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Akademia Nauk",
+        "gvp_id": 300124,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.45,
+          54.05
+        ]
+      },
+      "properties": {
+        "name": "Карымский",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Karymsky",
+        "gvp_id": 300130,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.67,
+          54.13
+        ]
+      },
+      "properties": {
+        "name": "Малый Семячик",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Maly Semiachik",
+        "gvp_id": 300140,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.02,
+          54.32
+        ]
+      },
+      "properties": {
+        "name": "Большой Семячик",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Bolshoi Semiachik",
+        "gvp_id": 300150,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.8,
+          54.53
+        ]
+      },
+      "properties": {
+        "name": "Тауншиц",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Taunshits",
+        "gvp_id": 300160,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.97,
+          54.5
+        ]
+      },
+      "properties": {
+        "name": "Узон",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Uzon",
+        "gvp_id": 300170,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.253,
+          54.487
+        ]
+      },
+      "properties": {
+        "name": "Кихпиныч",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Kikhpinych",
+        "gvp_id": 300180,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.273,
+          54.593
+        ]
+      },
+      "properties": {
+        "name": "Крашенинникова",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Krasheninnikov",
+        "gvp_id": 300190,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.527,
+          54.753
+        ]
+      },
+      "properties": {
+        "name": "Кроноцкий",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Kronotsky",
+        "gvp_id": 300200,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.63,
+          54.92
+        ]
+      },
+      "properties": {
+        "name": "Шмидта",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Schmidt",
+        "gvp_id": 300200,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.702,
+          54.973
+        ]
+      },
+      "properties": {
+        "name": "Гамчен",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Gamchen",
+        "gvp_id": 300210,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.72,
+          55.032
+        ]
+      },
+      "properties": {
+        "name": "Комарова",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Komarov",
+        "gvp_id": 300220,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.77,
+          55.07
+        ]
+      },
+      "properties": {
+        "name": "Высокий (Комарова)",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Vysoky",
+        "gvp_id": 300220,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.32,
+          55.13
+        ]
+      },
+      "properties": {
+        "name": "Кизимен",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Kizimen",
+        "gvp_id": 300230,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          161.75,
+          55.92
+        ]
+      },
+      "properties": {
+        "name": "Безымянный конус (GVP 300232)",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Unnamed",
+        "gvp_id": 300232,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.33,
+          55.83
+        ]
+      },
+      "properties": {
+        "name": "Толбачик",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Tolbachik",
+        "gvp_id": 300240,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.527,
+          55.755
+        ]
+      },
+      "properties": {
+        "name": "Удина",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Udina",
+        "gvp_id": 300240,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.603,
+          55.862
+        ]
+      },
+      "properties": {
+        "name": "Зимина",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Zimina",
+        "gvp_id": 300242,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.587,
+          55.978
+        ]
+      },
+      "properties": {
+        "name": "Безымянный",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Bezymianny",
+        "gvp_id": 300250,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.593,
+          56.02
+        ]
+      },
+      "properties": {
+        "name": "Камень",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Kamen",
+        "gvp_id": 300251,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.638,
+          56.057
+        ]
+      },
+      "properties": {
+        "name": "Ключевской",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Kliuchevskoi",
+        "gvp_id": 300260,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.47,
+          56.07
+        ]
+      },
+      "properties": {
+        "name": "Ушковский",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Ushkovsky",
+        "gvp_id": 300260,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          161.36,
+          56.653
+        ]
+      },
+      "properties": {
+        "name": "Шивелуч",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Shiveluch",
+        "gvp_id": 300270,
+        "gvp_class": "NULL",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.38,
+          54.75
+        ]
+      },
+      "properties": {
+        "name": "Хангар",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Khangar",
+        "gvp_id": 300272,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.47,
+          55.55
+        ]
+      },
+      "properties": {
+        "name": "Группа Черпук",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Cherpuk Group",
+        "gvp_id": 300272,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.73,
+          55.68
+        ]
+      },
+      "properties": {
+        "name": "Ичинский",
+        "type": "Действующий вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Действующий",
+        "gvp_name": "Ichinsky",
+        "gvp_id": 300280,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.98,
+          55.82
+        ]
+      },
+      "properties": {
+        "name": "Малый Паялпан",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Maly Payalpan",
+        "gvp_id": 300290,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.78,
+          55.88
+        ]
+      },
+      "properties": {
+        "name": "Большой Паялпан",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Bolshoi Payalpan",
+        "gvp_id": 300300,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.47,
+          55.2
+        ]
+      },
+      "properties": {
+        "name": "Плоский",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Plosky",
+        "gvp_id": 300310,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.65,
+          55.43
+        ]
+      },
+      "properties": {
+        "name": "Ахтанг",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Akhtang",
+        "gvp_id": 300320,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.38,
+          55.58
+        ]
+      },
+      "properties": {
+        "name": "Козыревский",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Kozyrevsky",
+        "gvp_id": 300330,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.8,
+          55.65
+        ]
+      },
+      "properties": {
+        "name": "Романовка",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Romanovka",
+        "gvp_id": 300340,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.38,
+          56.08
+        ]
+      },
+      "properties": {
+        "name": "Уксичан",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Uksichan",
+        "gvp_id": 300350,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          157.8,
+          56.47
+        ]
+      },
+      "properties": {
+        "name": "Большой Кекукнайский",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Bolshoi-Kekuknaysky",
+        "gvp_id": 300360,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.37,
+          56.37
+        ]
+      },
+      "properties": {
+        "name": "Кулькев",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Kulkev",
+        "gvp_id": 300370,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.67,
+          56.33
+        ]
+      },
+      "properties": {
+        "name": "Геодезистов",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Geodesistoy",
+        "gvp_id": 300380,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.83,
+          56.32
+        ]
+      },
+      "properties": {
+        "name": "Анаун",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Anaun",
+        "gvp_id": 300390,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)",
+        "примечание": "Статус по GVP — пограничный, рекомендуется проверка"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.03,
+          56.37
+        ]
+      },
+      "properties": {
+        "name": "Крайний",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Krainy",
+        "gvp_id": 300400,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.85,
+          56.4
+        ]
+      },
+      "properties": {
+        "name": "Кекурный",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Kekurny",
+        "gvp_id": 300410,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.52,
+          56.57
+        ]
+      },
+      "properties": {
+        "name": "Эггелла",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Eggella",
+        "gvp_id": 300420,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          158.95,
+          56.82
+        ]
+      },
+      "properties": {
+        "name": "Безымянный конус (GVP 300430)",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Unnamed",
+        "gvp_id": 300430,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.53,
+          56.52
+        ]
+      },
+      "properties": {
+        "name": "Верховой",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Verkhovoy",
+        "gvp_id": 300440,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.65,
+          56.7
+        ]
+      },
+      "properties": {
+        "name": "Альней-Чашаконджа",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Alney-Chashakondzha",
+        "gvp_id": 300450,
+        "gvp_class": "U-HHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.67,
+          56.82
+        ]
+      },
+      "properties": {
+        "name": "Чёрный",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Cherny",
+        "gvp_id": 300460,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.8,
+          56.85
+        ]
+      },
+      "properties": {
+        "name": "Пограничный",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Pogranychny",
+        "gvp_id": 300470,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.95,
+          56.88
+        ]
+      },
+      "properties": {
+        "name": "Заозёрный",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Zaozerny",
+        "gvp_id": 300480,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.78,
+          56.97
+        ]
+      },
+      "properties": {
+        "name": "Близнец",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Bliznets",
+        "gvp_id": 300490,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.93,
+          57.1
+        ]
+      },
+      "properties": {
+        "name": "Кебеней",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Kebeney",
+        "gvp_id": 300500,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.4,
+          57.13
+        ]
+      },
+      "properties": {
+        "name": "Федотыч",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Fedotych",
+        "gvp_id": 300510,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          161.08,
+          57.15
+        ]
+      },
+      "properties": {
+        "name": "Шишейка",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Shisheika",
+        "gvp_id": 300511,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.83,
+          57.2
+        ]
+      },
+      "properties": {
+        "name": "Терпук",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Terpuk",
+        "gvp_id": 300512,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.08,
+          57.27
+        ]
+      },
+      "properties": {
+        "name": "Седанкинский",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Sedankinsky",
+        "gvp_id": 300520,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.83,
+          57.3
+        ]
+      },
+      "properties": {
+        "name": "Леутонгей",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Leutongey",
+        "gvp_id": 300530,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          159.97,
+          57.32
+        ]
+      },
+      "properties": {
+        "name": "Тузовский",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Tuzovsky",
+        "gvp_id": 300540,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.2,
+          57.33
+        ]
+      },
+      "properties": {
+        "name": "Горного института",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Gorny Institute",
+        "gvp_id": 300550,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.97,
+          57.35
+        ]
+      },
+      "properties": {
+        "name": "Кинэнин",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Kinenin",
+        "gvp_id": 300551,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          161.37,
+          57.35
+        ]
+      },
+      "properties": {
+        "name": "Близнецы",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Bliznetsy",
+        "gvp_id": 300552,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.1,
+          57.4
+        ]
+      },
+      "properties": {
+        "name": "Титила",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Titila",
+        "gvp_id": 300560,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.25,
+          57.47
+        ]
+      },
+      "properties": {
+        "name": "Междусопочный",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Mezhdusopochny",
+        "gvp_id": 300570,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.37,
+          57.45
+        ]
+      },
+      "properties": {
+        "name": "Шишель",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Shishel",
+        "gvp_id": 300580,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.53,
+          57.55
+        ]
+      },
+      "properties": {
+        "name": "Еловский",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Elovsky",
+        "gvp_id": 300590,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.4,
+          57.7
+        ]
+      },
+      "properties": {
+        "name": "Алнгей",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Alngey",
+        "gvp_id": 300600,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.58,
+          57.7
+        ]
+      },
+      "properties": {
+        "name": "Ука",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Uka",
+        "gvp_id": 300610,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.67,
+          57.8
+        ]
+      },
+      "properties": {
+        "name": "Кайленей",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Kaileney",
+        "gvp_id": 300620,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.25,
+          57.83
+        ]
+      },
+      "properties": {
+        "name": "Плоский (Седанкинский)",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Plosky",
+        "gvp_id": 300630,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.53,
+          57.88
+        ]
+      },
+      "properties": {
+        "name": "Белый",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Bely",
+        "gvp_id": 300640,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.65,
+          57.97
+        ]
+      },
+      "properties": {
+        "name": "Нылгимелкин",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Nylgimelkin",
+        "gvp_id": 300650,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.8,
+          58.02
+        ]
+      },
+      "properties": {
+        "name": "Снежный",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Snezhniy",
+        "gvp_id": 300660,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.77,
+          58.08
+        ]
+      },
+      "properties": {
+        "name": "Иктунуп",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Iktunup",
+        "gvp_id": 300670,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.82,
+          58.13
+        ]
+      },
+      "properties": {
+        "name": "Спокойный",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Spokoiny",
+        "gvp_id": 300671,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.82,
+          58.18
+        ]
+      },
+      "properties": {
+        "name": "Острый",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Ostry",
+        "gvp_id": 300680,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.97,
+          58.2
+        ]
+      },
+      "properties": {
+        "name": "Снеговой",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Snegovoy",
+        "gvp_id": 300690,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.87,
+          58.28
+        ]
+      },
+      "properties": {
+        "name": "Северный",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Severny",
+        "gvp_id": 300700,
+        "gvp_class": "U-HR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          161.08,
+          58.4
+        ]
+      },
+      "properties": {
+        "name": "Иеттунуп",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Iettunup",
+        "gvp_id": 300710,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          160.62,
+          58.37
+        ]
+      },
+      "properties": {
+        "name": "Воямпольский",
+        "type": "Потухший вулкан",
+        "description": "",
+        "photo": "",
+        "status": "Потухший",
+        "gvp_name": "Voyampolsky",
+        "gvp_id": 300720,
+        "gvp_class": "U-NHHR",
+        "source": "Smithsonian GVP (Volcanoes of the World)"
       }
     }
   ]

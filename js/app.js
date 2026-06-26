@@ -223,13 +223,29 @@
     var lyrId = "lyr-" + layerCfg.id;
     var visible = layerCfg.visible !== false;
 
+    // Категоризированный круговой слой: цвет зависит от поля colorField
+    var mk = layerCfg.marker;
+    var catCircle = !!(mk && mk.colors && mk.colorField && mk.shape !== "star");
+    var circleColor = layerCfg.color;
+    var presentTypes = {};
+    if (catCircle) {
+      var expr = ["match", ["get", mk.colorField]];
+      Object.keys(mk.colors).forEach(function (k) { expr.push(k, mk.colors[k]); });
+      expr.push(mk.defaultColor || layerCfg.color);
+      circleColor = expr;
+      (geojson.features || []).forEach(function (f) {
+        var v = (f.properties || {})[mk.colorField];
+        if (v !== undefined && v !== null && v !== "") presentTypes[v] = true;
+      });
+    }
+
     map.addSource(srcId, { type: "geojson", data: geojson });
     map.addLayer({
       id: lyrId, type: "circle", source: srcId,
       layout: { visibility: visible ? "visible" : "none" },
       paint: {
         "circle-radius": 7,
-        "circle-color": layerCfg.color,
+        "circle-color": circleColor,
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": 2
       }
@@ -259,14 +275,39 @@
       });
     });
 
-    overlay[layerCfg.id] = {
-      kind: "simple",
-      visible: visible,
-      setVisible: function (v) {
-        this.visible = v;
-        map.setLayoutProperty(lyrId, "visibility", v ? "visible" : "none");
-      }
-    };
+    if (catCircle) {
+      overlay[layerCfg.id] = {
+        kind: "circleCat",
+        visible: visible,
+        colorField: mk.colorField,
+        colors: mk.colors,
+        types: Object.keys(presentTypes).sort(),
+        enabledTypes: {},
+        setVisible: function (v) {
+          this.visible = v;
+          map.setLayoutProperty(lyrId, "visibility", v ? "visible" : "none");
+        },
+        setType: function (t, v) {
+          this.enabledTypes[t] = v;
+          var enabled = this.types.filter(function (x) { return this.enabledTypes[x] !== false; }, this);
+          if (enabled.length === this.types.length) {
+            map.setFilter(lyrId, null);
+          } else {
+            map.setFilter(lyrId, ["match", ["get", this.colorField], enabled.length ? enabled : ["\u0000"], true, false]);
+          }
+        }
+      };
+      overlay[layerCfg.id].types.forEach(function (t) { overlay[layerCfg.id].enabledTypes[t] = true; });
+    } else {
+      overlay[layerCfg.id] = {
+        kind: "simple",
+        visible: visible,
+        setVisible: function (v) {
+          this.visible = v;
+          map.setLayoutProperty(lyrId, "visibility", v ? "visible" : "none");
+        }
+      };
+    }
   }
 
   function addCategorizedLayer(layerCfg, geojson, pcfg) {
@@ -352,7 +393,8 @@
     box.innerHTML = "";
     cfg.layers.forEach(function (layerCfg) {
       var ov = overlay[layerCfg.id];
-      var hasLegend = !!(layerCfg.marker && layerCfg.marker.shape === "star" && layerCfg.marker.colors);
+      var hasLegend = !!(layerCfg.marker && layerCfg.marker.colors);
+      var isStar = layerCfg.marker && layerCfg.marker.shape === "star";
 
       var item = document.createElement("div");
       item.className = "layer-item";
@@ -381,7 +423,7 @@
       }
       row.appendChild(span);
 
-      if (hasLegend && ov && ov.kind === "categorized") {
+      if (hasLegend && ov && (ov.kind === "categorized" || ov.kind === "circleCat")) {
         var caret = document.createElement("span");
         caret.className = "legend-caret";
         caret.textContent = "▸";
@@ -390,7 +432,8 @@
         var legend = document.createElement("div");
         legend.className = "layer-legend";
 
-        Object.keys(ov.typeGroups).sort().forEach(function (type) {
+        var types = ov.kind === "categorized" ? Object.keys(ov.typeGroups).sort() : ov.types;
+        types.forEach(function (type) {
           var color = (layerCfg.marker.colors && layerCfg.marker.colors[type]) || layerCfg.marker.defaultColor;
           var li = document.createElement("label");
           li.className = "legend-item";
@@ -403,8 +446,13 @@
           });
 
           var sw = document.createElement("span");
-          sw.className = "legend-star";
-          sw.innerHTML = starSvg(color, 16);
+          if (isStar) {
+            sw.className = "legend-star";
+            sw.innerHTML = starSvg(color, 16);
+          } else {
+            sw.className = "swatch";
+            sw.style.background = color;
+          }
 
           var tx = document.createElement("span");
           tx.textContent = type;

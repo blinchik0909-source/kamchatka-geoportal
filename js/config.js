@@ -40,10 +40,20 @@ window.PORTAL_CONFIG = {
   layers: [
     {
       id: "volcanoes",
-      name: "Вулканы",
+      name: "Вулканы (GVP)",
       geojson: "data/volcanoes.geojson",
-      color: "#f0883e",
-      visible: true
+      color: "#e8453c",
+      visible: true,
+      // Круговые маркеры с раскраской по статусу (действующий/потухший)
+      marker: {
+        shape: "circle",
+        colorField: "type",
+        defaultColor: "#e8453c",
+        colors: {
+          "Действующий вулкан": "#e8453c",
+          "Потухший вулкан": "#8a96a3"
+        }
+      }
     },
     {
       id: "springs",
@@ -226,7 +236,11 @@ window.PORTAL_CONFIG = {
       status: "Статус",
       last_eruption: "Последнее извержение",
       temperature: "Температура, °C",
-      source: "Источник"
+      source: "Источник",
+      gvp_name: "Название (GVP)",
+      gvp_id: "Номер GVP",
+      gvp_class: "Класс (исходный)",
+      "примечание": "Примечание"
     }
   }
 };
