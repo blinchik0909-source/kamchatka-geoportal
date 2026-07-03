@@ -34,6 +34,26 @@ window.PORTAL_CONFIG = {
       attribution: "Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics"
     },
     {
+      id: "esri-topo",
+      name: "Топографическая (ESRI)",
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+      attribution: "Tiles &copy; Esri — Esri, HERE, Garmin, USGS, NGA"
+    },
+    {
+      id: "carto-light",
+      name: "Светлая (CARTO)",
+      url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+      attribution: "&copy; CARTO, &copy; OpenStreetMap contributors",
+      maxZoom: 19
+    },
+    {
+      id: "carto-dark",
+      name: "Тёмная (CARTO)",
+      url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      attribution: "&copy; CARTO, &copy; OpenStreetMap contributors",
+      maxZoom: 19
+    },
+    {
       id: "yandex-map",
       name: "Яндекс Карта",
       url: "https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
