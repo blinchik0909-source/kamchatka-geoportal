@@ -32,6 +32,20 @@ window.PORTAL_CONFIG = {
       name: "Спутник (ESRI)",
       url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       attribution: "Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics"
+    },
+    {
+      id: "yandex-map",
+      name: "Яндекс Карта",
+      url: "https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU",
+      attribution: "&copy; Яндекс",
+      maxZoom: 19
+    },
+    {
+      id: "yandex-sat",
+      name: "Яндекс Спутник",
+      url: "https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&lang=ru_RU",
+      attribution: "&copy; Яндекс",
+      maxZoom: 19
     }
   ],
 
