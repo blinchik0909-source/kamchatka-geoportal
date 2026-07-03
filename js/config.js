@@ -152,7 +152,7 @@ window.PORTAL_CONFIG = {
       name: "Вулканы (GVP)",
       geojson: "data/volcanoes.geojson",
       color: "#e8453c",
-      visible: true,
+      visible: false,
       // Круговые маркеры с раскраской по статусу (действующий/потухший)
       marker: {
         shape: "circle",
@@ -169,7 +169,7 @@ window.PORTAL_CONFIG = {
       name: "Термальные источники",
       geojson: "data/springs.geojson",
       color: "#58a6ff",
-      visible: true
+      visible: false
     },
     {
       id: "dostoprim",
