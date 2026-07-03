@@ -154,14 +154,17 @@
 
     // Блок геологии (данные из геологической карты)
     if (pcfg.geoBlock) {
-      var gIdx = props[pcfg.geoBlock.indexField];
-      var gUnit = props[pcfg.geoBlock.unitField];
-      if ((gIdx !== undefined && gIdx !== null && gIdx !== "") ||
-          (gUnit !== undefined && gUnit !== null && gUnit !== "")) {
+      var gb = pcfg.geoBlock;
+      var gIdx = props[gb.indexField];
+      var gUnit = props[gb.unitField];
+      var gGroup = gb.groupField ? props[gb.groupField] : "";
+      var has = function (v) { return v !== undefined && v !== null && v !== ""; };
+      if (has(gIdx) || has(gUnit) || has(gGroup)) {
         html += '<div class="pp-geo"><span class="pp-geo-title">' +
-                escapeHtml(pcfg.geoBlock.title || "Геология (по карте)") + "</span>";
-        if (gUnit) html += '<div class="pp-geo-unit">' + escapeHtml(gUnit) + "</div>";
-        if (gIdx) html += '<div class="pp-geo-idx">Индекс: <b>' + escapeHtml(gIdx) + "</b></div>";
+                escapeHtml(gb.title || "Геология (по карте)") + "</span>";
+        if (has(gGroup)) html += '<div class="pp-geo-row"><span class="pp-geo-label">Подразделение:</span> ' + escapeHtml(gGroup) + "</div>";
+        if (has(gUnit)) html += '<div class="pp-geo-row"><span class="pp-geo-label">Описание (rus):</span> ' + escapeHtml(gUnit) + "</div>";
+        if (has(gIdx)) html += '<div class="pp-geo-row"><span class="pp-geo-label">Индекс:</span> <b>' + escapeHtml(gIdx) + "</b></div>";
         html += "</div>";
       }
     }
