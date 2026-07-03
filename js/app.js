@@ -46,6 +46,10 @@
     maxZoom: cfg.map.maxZoom,
     attributionControl: false
   });
+  // Стартовый охват — весь Камчатский край
+  if (cfg.map.bounds) {
+    map.fitBounds(cfg.map.bounds, { padding: 20, animate: false });
+  }
   map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
   map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }), "bottom-left");
