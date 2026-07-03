@@ -40,7 +40,7 @@ window.PORTAL_CONFIG = {
   layers: [
     {
       id: "geology_map",
-      name: "Геологическая карта (1:5 000 000)",
+      name: "Геологическая карта",
       geojson: "data/geology.geojson",
       geom: "polygon",
       color: "#8a6d3b",
@@ -167,6 +167,12 @@ window.PORTAL_CONFIG = {
         descriptionField: "подтип",
         photoField: "",
         hideAttributes: true, // скрыть таблицу остальных атрибутов
+        // Блок геологии по геологической карте (заполняется пространственным соединением)
+        geoBlock: {
+          title: "Геология (по карте)",
+          unitField: "геология",
+          indexField: "геол_индекс"
+        },
         photoSlots: 2,        // заготовка под N фотографий
         // Фото по точному имени объекта (путь относительно корня сайта)
         photos: {

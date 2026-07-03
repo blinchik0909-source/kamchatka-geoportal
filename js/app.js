@@ -152,6 +152,20 @@
     if (title) html += "<h3>" + escapeHtml(title) + "</h3>";
     if (desc) html += '<p class="pp-desc">' + escapeHtml(desc) + "</p>";
 
+    // Блок геологии (данные из геологической карты)
+    if (pcfg.geoBlock) {
+      var gIdx = props[pcfg.geoBlock.indexField];
+      var gUnit = props[pcfg.geoBlock.unitField];
+      if ((gIdx !== undefined && gIdx !== null && gIdx !== "") ||
+          (gUnit !== undefined && gUnit !== null && gUnit !== "")) {
+        html += '<div class="pp-geo"><span class="pp-geo-title">' +
+                escapeHtml(pcfg.geoBlock.title || "Геология (по карте)") + "</span>";
+        if (gUnit) html += '<div class="pp-geo-unit">' + escapeHtml(gUnit) + "</div>";
+        if (gIdx) html += '<div class="pp-geo-idx">Индекс: <b>' + escapeHtml(gIdx) + "</b></div>";
+        html += "</div>";
+      }
+    }
+
     if (!pcfg.hideAttributes) {
       var rows = "";
       Object.keys(props).forEach(function (key) {
