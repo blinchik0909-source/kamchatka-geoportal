@@ -407,15 +407,22 @@
       var v = (f.properties || {})[field];
       if (v !== undefined && v !== null && v !== "") present[v] = true;
     });
-    var types = Object.keys(present).map(function (k) {
-      var n = Number(k);
-      return isNaN(n) ? k : n;
-    }).sort(function (a, b) { return a > b ? 1 : a < b ? -1 : 0; });
+    var types;
+    if (mk.colors && Object.keys(mk.colors).length) {
+      // Порядок легенды — как в конфиге (напр., хронологический), только присутствующие
+      types = Object.keys(mk.colors).filter(function (k) { return present[k]; });
+      Object.keys(present).forEach(function (k) { if (types.indexOf(k) === -1) types.push(k); });
+    } else {
+      types = Object.keys(present).map(function (k) {
+        var n = Number(k);
+        return isNaN(n) ? k : n;
+      }).sort(function (a, b) { return a > b ? 1 : a < b ? -1 : 0; });
+    }
 
     var palette = (mk.colors && Object.keys(mk.colors).length) ? null : genPalette(types.length);
     var colors = {};
     types.forEach(function (t, i) {
-      colors[t] = (mk.colors && mk.colors[t]) || palette[i];
+      colors[t] = (mk.colors && mk.colors[t]) || (palette ? palette[i] : (mk.defaultColor || "#888888"));
     });
 
     var fillColor = ["match", ["get", field]];
