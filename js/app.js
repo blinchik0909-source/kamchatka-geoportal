@@ -828,7 +828,14 @@
     "Пешком": "#2e9e4f"
   };
   var PHASE_ORDER = ["Хорошая дорога", "Просёлок", "Пешком"];
-  var FOOT_SPEED = 1.35; // м/с (~4.9 км/ч) для оценки времени пешего остатка
+  // Реалистичные средние скорости по этапам (м/с). Время считаем сами,
+  // т.к. модель времени BRouter (заточена под велосипед) для авто нереалистична.
+  var PHASE_SPEED = {
+    "Хорошая дорога": 60 / 3.6, // ~60 км/ч (трасса/шоссе с учётом населённых пунктов)
+    "Просёлок": 25 / 3.6,       // ~25 км/ч (грунтовка/гравий)
+    "Пешком": 4.2 / 3.6         // ~4.2 км/ч (тропа/пересечёнка)
+  };
+  var FOOT_SPEED = PHASE_SPEED["Пешком"]; // для пешего остатка по прямой
   var routeReq = 0;      // счётчик запросов (игнор устаревших ответов)
 
   function surfaceFromTags(tags) {
@@ -942,38 +949,37 @@
   }
   function distM(a, b) { return turf.distance(turf.point(a), turf.point(b), { units: "kilometers" }) * 1000; }
 
-  // Разбор BRouter messages → сегменты [{dist, time(сек), surf}]
+  // Разбор BRouter messages → сегменты [{dist, surf}] (теги покрытия + длина)
   function parseSegs(messages) {
     var segs = [];
     if (messages && messages.length > 1) {
       var h = messages[0];
-      var iT = h.indexOf("WayTags"), iD = h.indexOf("Distance"), iTime = h.indexOf("Time");
-      var prev = 0;
+      var iT = h.indexOf("WayTags"), iD = h.indexOf("Distance");
       for (var i = 1; i < messages.length; i++) {
         var dist = parseFloat(messages[i][iD]) || 0;
-        var t = 0;
-        if (iTime >= 0) { var c = parseFloat(messages[i][iTime]) || prev; t = Math.max(0, c - prev); prev = c; }
-        segs.push({ dist: dist, time: t, surf: surfaceFromTags(iT >= 0 ? messages[i][iT] : "") });
+        segs.push({ dist: dist, surf: surfaceFromTags(iT >= 0 ? messages[i][iT] : "") });
       }
     }
     return segs;
   }
 
+  // Оценка времени (сек) по расстоянию (м) и фазе — реалистичные средние скорости
+  function phaseTime(distMeters, phase) {
+    var v = PHASE_SPEED[phase] || PHASE_SPEED["Просёлок"];
+    return distMeters / v;
+  }
+
   // Строит геометрию по фазам + статистику {phase:{dist,time}} для одного «плеча»
-  function buildLeg(coords, messages, classifyFn, segType, totalTime) {
+  function buildLeg(coords, messages, classifyFn, segType) {
     var segs = parseSegs(messages);
     var stats = {};
-    var haveTime = segs.some(function (s) { return s.time > 0; });
-    var totalDist = segs.reduce(function (a, s) { return a + s.dist; }, 0);
     var ends = [], cum = 0;
     segs.forEach(function (s) {
       cum += s.dist; ends.push(cum);
       var ph = classifyFn(s.surf);
       if (!stats[ph]) stats[ph] = { dist: 0, time: 0 };
       stats[ph].dist += s.dist;
-      var t = s.time;
-      if (!haveTime && totalTime && totalDist > 0) t = totalTime * s.dist / totalDist;
-      stats[ph].time += t;
+      stats[ph].time += phaseTime(s.dist, ph);
     });
 
     var feats = [];
@@ -1069,13 +1075,13 @@
     var allCoords = [];
 
     if (car) {
-      var L = buildLeg(car.coords, car.messages, classifyDrivePhase, "drive", car.totalTime);
+      var L = buildLeg(car.coords, car.messages, classifyDrivePhase, "drive");
       features = features.concat(L.features);
       mergeStats(stats, L.stats);
       allCoords = allCoords.concat(car.coords);
     }
     if (foot) {
-      var F = buildLeg(foot.coords, foot.messages, function () { return "Пешком"; }, "foot", foot.totalTime);
+      var F = buildLeg(foot.coords, foot.messages, function () { return "Пешком"; }, "foot");
       features = features.concat(F.features);
       mergeStats(stats, F.stats);
       allCoords = allCoords.concat(foot.coords);
