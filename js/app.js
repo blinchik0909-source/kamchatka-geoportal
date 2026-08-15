@@ -140,7 +140,7 @@
   // ============================================================
   //  Попап достопримечательностей (с фото/пометками)
   // ============================================================
-  function buildPopupHtml(props, pcfg) {
+  function buildPopupHtml(props, pcfg, coords) {
     pcfg = pcfg || POPUP;
     var title = props[pcfg.titleField];
     var type = props[pcfg.typeField];
@@ -209,6 +209,13 @@
       }
     }
 
+    // Кнопка прокладки маршрута к точке
+    if (coords && coords.length >= 2) {
+      html += '<button type="button" class="pp-route-btn" ' +
+              'data-lng="' + Number(coords[0]) + '" data-lat="' + Number(coords[1]) + '" ' +
+              'data-name="' + escapeHtml(title || "") + '">🧭 Проложить маршрут сюда</button>';
+    }
+
     html += "</div></div>";
     return html;
   }
@@ -275,7 +282,8 @@
     map.on("click", lyrId, function (e) {
       if (measureActive) return;
       var f = e.features[0];
-      showPopup(e.lngLat, buildPopupHtml(f.properties, pcfg));
+      var c = (f.geometry && f.geometry.coordinates) || [e.lngLat.lng, e.lngLat.lat];
+      showPopup(e.lngLat, buildPopupHtml(f.properties, pcfg, c));
     });
     map.on("mouseenter", lyrId, function () { if (!measureActive) map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", lyrId, function () { if (!measureActive) map.getCanvas().style.cursor = ""; });
@@ -286,7 +294,7 @@
       var name = props[pcfg.titleField];
       if (!name) return;
       var lngLat = feature.geometry.coordinates;
-      var html = buildPopupHtml(props, pcfg);
+      var html = buildPopupHtml(props, pcfg, lngLat);
       searchIndex.push({
         name: String(name),
         type: props[pcfg.typeField] || layerCfg.name,
@@ -345,7 +353,7 @@
       var color = markerColor(mk, props);
 
       var popup = new maplibregl.Popup({ offset: (mk.size ? mk.size / 2 : 12), maxWidth: "320px" })
-        .setHTML(buildPopupHtml(props, pcfg));
+        .setHTML(buildPopupHtml(props, pcfg, coords));
       var marker = new maplibregl.Marker({ element: makeStarEl(color, mk.size), anchor: "center" })
         .setLngLat(coords)
         .setPopup(popup);
@@ -804,6 +812,199 @@
   }
 
   // ============================================================
+  //  Прокладка маршрутов (OSRM — бесплатный публичный сервер)
+  // ============================================================
+  var OSRM_URL = "https://router.project-osrm.org/route/v1/driving/";
+  var PETROPAVLOVSK = [158.6505, 53.0195];
+  var routeState = { origin: null, originLabel: "", dest: null, destName: "", pickMode: false };
+  var routePanel = null;
+
+  function setupRouting() {
+    map.addSource("route", { type: "geojson", data: EMPTY_FC });
+    map.addLayer({
+      id: "route-halo", type: "line", source: "route",
+      filter: ["==", ["get", "kind"], "route"],
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": "#ffffff", "line-width": 9, "line-opacity": 0.75 }
+    });
+    map.addLayer({
+      id: "route-line", type: "line", source: "route",
+      filter: ["==", ["get", "kind"], "route"],
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": "#1a73e8", "line-width": 5 }
+    });
+    map.addLayer({
+      id: "route-straight", type: "line", source: "route",
+      filter: ["==", ["get", "kind"], "straight"],
+      paint: { "line-color": "#e8453c", "line-width": 3, "line-dasharray": [2, 2] }
+    });
+    map.addLayer({
+      id: "route-ends", type: "circle", source: "route",
+      filter: ["==", "$type", "Point"],
+      paint: {
+        "circle-radius": 6,
+        "circle-color": ["match", ["get", "role"], "origin", "#34a853", "dest", "#e8453c", "#888888"],
+        "circle-stroke-color": "#ffffff", "circle-stroke-width": 2
+      }
+    });
+
+    routePanel = document.createElement("div");
+    routePanel.className = "route-panel";
+    routePanel.style.display = "none";
+    document.getElementById("map").appendChild(routePanel);
+
+    map.on("click", function (e) {
+      if (!routeState.pickMode) return;
+      routeState.pickMode = false;
+      map.getCanvas().style.cursor = "";
+      setOrigin([e.lngLat.lng, e.lngLat.lat], "Точка на карте");
+      computeRoute();
+    });
+  }
+
+  function startRouteTo(lng, lat, name) {
+    routeState.dest = [lng, lat];
+    routeState.destName = name || "Точка";
+    routePanel.style.display = "block";
+    renderRoutePanel();
+    if (routeState.origin) computeRoute();
+    else geolocateOrigin();
+  }
+
+  function setOrigin(lngLat, label) {
+    routeState.origin = lngLat;
+    routeState.originLabel = label || "Старт";
+    renderRoutePanel();
+  }
+
+  function geolocateOrigin() {
+    if (!navigator.geolocation) {
+      renderRoutePanel("Геолокация недоступна — выберите старт вручную.");
+      return;
+    }
+    renderRoutePanel("Определяю ваше местоположение…");
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        setOrigin([pos.coords.longitude, pos.coords.latitude], "Моё местоположение");
+        computeRoute();
+      },
+      function () { renderRoutePanel("Не удалось определить местоположение — выберите старт вручную."); },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }
+
+  function fmtDist(m) { return m < 1000 ? Math.round(m) + " м" : (m / 1000).toFixed(1) + " км"; }
+  function fmtDur(s) {
+    var min = Math.round(s / 60);
+    if (min < 60) return min + " мин";
+    return Math.floor(min / 60) + " ч " + (min % 60) + " мин";
+  }
+
+  function setRouteData(geometry, kind) {
+    map.getSource("route").setData({
+      type: "FeatureCollection",
+      features: [
+        { type: "Feature", properties: { kind: kind }, geometry: geometry },
+        { type: "Feature", properties: { role: "origin" }, geometry: { type: "Point", coordinates: routeState.origin } },
+        { type: "Feature", properties: { role: "dest" }, geometry: { type: "Point", coordinates: routeState.dest } }
+      ]
+    });
+  }
+
+  function fitRoute(coords) {
+    var b = new maplibregl.LngLatBounds(coords[0], coords[0]);
+    coords.forEach(function (c) { b.extend(c); });
+    map.fitBounds(b, { padding: 70, maxZoom: 13, duration: 700 });
+  }
+
+  function computeRoute() {
+    if (!routeState.origin || !routeState.dest) return;
+    var o = routeState.origin, d = routeState.dest;
+    renderRoutePanel("Прокладываю маршрут…");
+    var url = OSRM_URL + o[0] + "," + o[1] + ";" + d[0] + "," + d[1] + "?overview=full&geometries=geojson";
+    fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.code === "Ok" && data.routes && data.routes.length) {
+          var rt = data.routes[0];
+          setRouteData(rt.geometry, "route");
+          renderRoutePanel(null, { dist: rt.distance, dur: rt.duration, straight: false });
+          fitRoute(rt.geometry.coordinates);
+        } else {
+          straightFallback();
+        }
+      })
+      .catch(function () { straightFallback(); });
+  }
+
+  function straightFallback() {
+    var o = routeState.origin, d = routeState.dest;
+    setRouteData({ type: "LineString", coordinates: [o, d] }, "straight");
+    var dist = turf.distance(turf.point(o), turf.point(d), { units: "kilometers" }) * 1000;
+    renderRoutePanel(null, { dist: dist, dur: null, straight: true });
+    fitRoute([o, d]);
+  }
+
+  function clearRoute() {
+    routeState.dest = null;
+    routeState.pickMode = false;
+    if (map.getSource("route")) map.getSource("route").setData(EMPTY_FC);
+    map.getCanvas().style.cursor = "";
+    routePanel.style.display = "none";
+  }
+
+  function renderRoutePanel(statusMsg, result) {
+    if (!routePanel) return;
+    var html = '<div class="route-head"><b>🧭 Маршрут</b>' +
+               '<button type="button" class="route-close" title="Закрыть">✕</button></div>';
+    html += '<div class="route-dest">До: <b>' + escapeHtml(routeState.destName || "") + "</b></div>";
+    html += '<div class="route-origin">Старт: ' +
+            (routeState.origin ? escapeHtml(routeState.originLabel) : "<i>не задан</i>") + "</div>";
+    html += '<div class="route-btns">' +
+            '<button type="button" data-act="geo">📍 Моё местоположение</button>' +
+            '<button type="button" data-act="pick">🖱 Указать на карте</button>' +
+            '<button type="button" data-act="pkc">🏙 Петропавловск-Камчатский</button>' +
+            "</div>";
+    if (statusMsg) html += '<div class="route-status">' + escapeHtml(statusMsg) + "</div>";
+    if (result) {
+      html += '<div class="route-result">Расстояние: <b>' + fmtDist(result.dist) + "</b>";
+      if (result.straight) {
+        html += ' <span class="route-note">(по прямой — дорога не найдена)</span>';
+      } else if (result.dur != null) {
+        html += " · В пути: <b>" + fmtDur(result.dur) + "</b> <span class=\"route-note\">(на авто)</span>";
+      }
+      html += "</div>";
+    }
+    html += '<button type="button" class="route-clear">Очистить маршрут</button>';
+    routePanel.innerHTML = html;
+
+    routePanel.querySelector(".route-close").onclick = clearRoute;
+    routePanel.querySelector(".route-clear").onclick = clearRoute;
+    routePanel.querySelectorAll(".route-btns button").forEach(function (b) {
+      b.onclick = function () {
+        var act = b.getAttribute("data-act");
+        if (act === "geo") { geolocateOrigin(); }
+        else if (act === "pkc") { setOrigin(PETROPAVLOVSK.slice(), "Петропавловск-Камчатский"); computeRoute(); }
+        else if (act === "pick") {
+          routeState.pickMode = true;
+          map.getCanvas().style.cursor = "crosshair";
+          renderRoutePanel("Кликните на карте, чтобы задать точку старта.");
+        }
+      };
+    });
+  }
+
+  // Кнопка «Проложить маршрут» в попапах (делегирование)
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest(".pp-route-btn") : null;
+    if (!btn) return;
+    var lng = parseFloat(btn.getAttribute("data-lng"));
+    var lat = parseFloat(btn.getAttribute("data-lat"));
+    if (isNaN(lng) || isNaN(lat)) return;
+    startRouteTo(lng, lat, btn.getAttribute("data-name"));
+  });
+
+  // ============================================================
   //  Инструмент измерений (расстояние / площадь) на Turf.js
   // ============================================================
   function setupMeasure() {
@@ -910,6 +1111,7 @@
   map.on("load", function () {
     loadThematicLayers().then(buildLayerControls);
     buildOsmControls();
+    setupRouting();
     setupMeasure();
 
     var osmMoveTimer = null;
