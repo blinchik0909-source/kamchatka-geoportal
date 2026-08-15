@@ -828,13 +828,16 @@
     "Пешком": "#2e9e4f"
   };
   var PHASE_ORDER = ["Хорошая дорога", "Просёлок", "Пешком"];
-  // Реалистичные средние скорости по этапам (м/с). Время считаем сами,
-  // т.к. модель времени BRouter (заточена под велосипед) для авто нереалистична.
+  // Реалистичные средние скорости по этапам (м/с), откалиброванные под Камчатку:
+  //  - асфальт есть только на трассе Петропавловск–Мильково–Ключи;
+  //  - к вулканам ведут тяжёлые внедорожные треки (вахтовки идут ~15–20 км/ч);
+  //  - пешие подходы — по пересечёнке, время дополнительно корректируется набором высоты.
   var PHASE_SPEED = {
-    "Хорошая дорога": 60 / 3.6, // ~60 км/ч (трасса/шоссе с учётом населённых пунктов)
-    "Просёлок": 25 / 3.6,       // ~25 км/ч (грунтовка/гравий)
-    "Пешком": 4.2 / 3.6         // ~4.2 км/ч (тропа/пересечёнка)
+    "Хорошая дорога": 55 / 3.6, // ~55 км/ч (асфальт с посёлками, постами, гравийными участками трассы)
+    "Просёлок": 18 / 3.6,       // ~18 км/ч (внедорожный трек, броды, вулканический шлак)
+    "Пешком": 4 / 3.6           // ~4 км/ч базово по ровному; набор высоты добавляется отдельно
   };
+  var NAISMITH_SEC_PER_M = 6;   // правило Наисмита: +1 ч на каждые 600 м набора высоты
   var FOOT_SPEED = PHASE_SPEED["Пешком"]; // для пешего остатка по прямой
   var routeReq = 0;      // счётчик запросов (игнор устаревших ответов)
 
@@ -969,6 +972,16 @@
     return distMeters / v;
   }
 
+  // Суммарный набор высоты (м) по координатам трека BRouter ([lon,lat,ele])
+  function computeAscent(coords) {
+    var up = 0;
+    for (var i = 1; i < coords.length; i++) {
+      var z0 = coords[i - 1][2], z1 = coords[i][2];
+      if (typeof z0 === "number" && typeof z1 === "number" && z1 > z0) up += z1 - z0;
+    }
+    return up;
+  }
+
   // Строит геометрию по фазам + статистику {phase:{dist,time}} для одного «плеча»
   function buildLeg(coords, messages, classifyFn, segType) {
     var segs = parseSegs(messages);
@@ -1073,6 +1086,7 @@
     if (reqId !== routeReq) return;
     var features = [], stats = {};
     var allCoords = [];
+    var footAscent = 0;
 
     if (car) {
       var L = buildLeg(car.coords, car.messages, classifyDrivePhase, "drive");
@@ -1085,6 +1099,9 @@
       features = features.concat(F.features);
       mergeStats(stats, F.stats);
       allCoords = allCoords.concat(foot.coords);
+      // Поправка на набор высоты (правило Наисмита) — восхождения к вулканам медленные
+      footAscent = computeAscent(foot.coords);
+      if (stats["Пешком"]) stats["Пешком"].time += footAscent * NAISMITH_SEC_PER_M;
     } else if (car) {
       // Пеший маршрут не построился — дотягиваем прямой пеший остаток до цели
       var carEnd = car.coords[car.coords.length - 1];
@@ -1100,7 +1117,11 @@
 
     setRouteFeatures(features);
     var breakdown = PHASE_ORDER.filter(function (p) { return stats[p]; })
-      .map(function (p) { return { phase: p, dist: stats[p].dist, time: stats[p].time }; });
+      .map(function (p) {
+        var item = { phase: p, dist: stats[p].dist, time: stats[p].time };
+        if (p === "Пешком" && footAscent > 5) item.ascent = footAscent;
+        return item;
+      });
     var totDist = breakdown.reduce(function (a, x) { return a + x.dist; }, 0);
     var totTime = breakdown.reduce(function (a, x) { return a + x.time; }, 0);
     var res = { straight: false, breakdown: breakdown, totDist: totDist, totTime: totTime };
@@ -1149,10 +1170,12 @@
         html += '<div class="route-breakdown"><div class="route-bd-title">Этапы маршрута:</div>';
         result.breakdown.forEach(function (b) {
           var icon = b.phase === "Пешком" ? "🚶" : "🚗";
+          var val = fmtDist(b.dist) + " · " + fmtDur(b.time);
+          if (b.ascent) val += ' <span class="route-note">↑' + Math.round(b.ascent) + " м</span>";
           html += '<div class="route-bd-item">' +
                   '<span class="route-chip" style="background:' + (PHASE_COLORS[b.phase] || "#8894a3") + '"></span>' +
                   '<span class="route-bd-phase">' + icon + " " + escapeHtml(b.phase) + "</span>" +
-                  '<span class="route-bd-val">' + fmtDist(b.dist) + " · " + fmtDur(b.time) + "</span></div>";
+                  '<span class="route-bd-val">' + val + "</span></div>";
         });
         html += "</div>";
         html += '<div class="route-total">Итого: <b>' + fmtDist(result.totDist) +
