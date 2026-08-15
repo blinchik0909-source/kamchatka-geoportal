@@ -812,27 +812,69 @@
   }
 
   // ============================================================
-  //  Прокладка маршрутов (OSRM — бесплатный публичный сервер)
+  //  Прокладка маршрутов (BRouter — бесплатно, без ключа)
+  //  Даёт геометрию + теги дорог (surface/highway) и профили авто/пешком
   // ============================================================
-  var OSRM_URL = "https://router.project-osrm.org/route/v1/driving/";
+  var BROUTER_URL = "https://brouter.de/brouter";
+  var BROUTER_PROFILE = { car: "car-fast", foot: "hiking-mountain" };
   var PETROPAVLOVSK = [158.6505, 53.0195];
-  var routeState = { origin: null, originLabel: "", dest: null, destName: "", pickMode: false };
+  var routeState = { origin: null, originLabel: "", dest: null, destName: "", pickMode: false, mode: "car", lastResult: null };
   var routePanel = null;
+
+  // Классификация покрытия и цвета сегментов
+  var SURF_COLORS = {
+    "Асфальт/твёрдое": "#1a73e8",
+    "Гравий/грунтовка": "#e8a13c",
+    "Грунт/тропа": "#a0522d",
+    "Иное покрытие": "#8e44ad",
+    "Покрытие неизвестно": "#8894a3"
+  };
+  function surfColorExpr() {
+    var expr = ["match", ["get", "surface"]];
+    Object.keys(SURF_COLORS).forEach(function (k) { expr.push(k, SURF_COLORS[k]); });
+    expr.push("#8894a3");
+    return expr;
+  }
+  function surfaceFromTags(tags) {
+    tags = tags || "";
+    var sm = /surface=([^\s]+)/.exec(tags);
+    var s = sm ? sm[1] : "";
+    if (/(asphalt|paved|concrete|paving_stones|sett|cobblestone|metal|wood|chipseal)/.test(s)) return "Асфальт/твёрдое";
+    if (/(gravel|fine_gravel|compacted|pebblestone)/.test(s)) return "Гравий/грунтовка";
+    if (/(ground|dirt|earth|mud|sand|grass|unpaved|soil)/.test(s)) return "Грунт/тропа";
+    if (s) return "Иное покрытие";
+    var hm = /highway=([^\s]+)/.exec(tags);
+    var h = hm ? hm[1] : "";
+    if (/(motorway|trunk|primary|secondary|tertiary|residential|living_street|unclassified|service)/.test(h)) return "Асфальт/твёрдое";
+    if (/track/.test(h)) return "Гравий/грунтовка";
+    if (/(path|footway|bridleway|steps|cycleway|pedestrian)/.test(h)) return "Грунт/тропа";
+    return "Покрытие неизвестно";
+  }
 
   function setupRouting() {
     map.addSource("route", { type: "geojson", data: EMPTY_FC });
+    // Белая обводка под всеми сегментами
     map.addLayer({
       id: "route-halo", type: "line", source: "route",
-      filter: ["==", ["get", "kind"], "route"],
+      filter: ["==", ["get", "kind"], "seg"],
       layout: { "line-join": "round", "line-cap": "round" },
-      paint: { "line-color": "#ffffff", "line-width": 9, "line-opacity": 0.75 }
+      paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.75 }
     });
+    // Авто-сегменты: сплошная линия, цвет по покрытию
     map.addLayer({
-      id: "route-line", type: "line", source: "route",
-      filter: ["==", ["get", "kind"], "route"],
+      id: "route-seg-car", type: "line", source: "route",
+      filter: ["all", ["==", ["get", "kind"], "seg"], ["==", ["get", "mode"], "car"]],
       layout: { "line-join": "round", "line-cap": "round" },
-      paint: { "line-color": "#1a73e8", "line-width": 5 }
+      paint: { "line-color": surfColorExpr(), "line-width": 5 }
     });
+    // Пешие сегменты: пунктир, цвет по покрытию
+    map.addLayer({
+      id: "route-seg-foot", type: "line", source: "route",
+      filter: ["all", ["==", ["get", "kind"], "seg"], ["==", ["get", "mode"], "foot"]],
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": surfColorExpr(), "line-width": 4, "line-dasharray": [1.5, 1.2] }
+    });
+    // Запасная прямая
     map.addLayer({
       id: "route-straight", type: "line", source: "route",
       filter: ["==", ["get", "kind"], "straight"],
@@ -899,15 +941,51 @@
     if (min < 60) return min + " мин";
     return Math.floor(min / 60) + " ч " + (min % 60) + " мин";
   }
+  function distM(a, b) { return turf.distance(turf.point(a), turf.point(b), { units: "kilometers" }) * 1000; }
 
-  function setRouteData(geometry, kind) {
+  // Разбивка геометрии на сегменты по типу покрытия из BRouter messages
+  function buildSurfaceSegments(coords, messages, mode) {
+    var segs = []; // {end: накопленная длина, cat}
+    if (messages && messages.length > 1) {
+      var header = messages[0];
+      var iTags = header.indexOf("WayTags");
+      var iDist = header.indexOf("Distance");
+      var cum = 0;
+      for (var i = 1; i < messages.length; i++) {
+        var dm = parseFloat(messages[i][iDist]) || 0;
+        cum += dm;
+        segs.push({ end: cum, cat: surfaceFromTags(iTags >= 0 ? messages[i][iTags] : "") });
+      }
+    }
+    var features = [];
+    var present = {};
+    var geomCum = 0, si = 0, curCat = null, curCoords = null;
+    for (var k = 0; k < coords.length - 1; k++) {
+      var a = coords[k], b = coords[k + 1];
+      var d = distM(a, b);
+      var mid = geomCum + d / 2;
+      while (segs.length && si < segs.length - 1 && segs[si].end < mid) si++;
+      var cat = segs.length ? segs[si].cat : "Покрытие неизвестно";
+      present[cat] = true;
+      if (cat !== curCat) {
+        if (curCoords) features.push({ type: "Feature", properties: { kind: "seg", mode: mode, surface: curCat }, geometry: { type: "LineString", coordinates: curCoords } });
+        curCat = cat;
+        curCoords = [a];
+      }
+      curCoords.push(b);
+      geomCum += d;
+    }
+    if (curCoords) features.push({ type: "Feature", properties: { kind: "seg", mode: mode, surface: curCat }, geometry: { type: "LineString", coordinates: curCoords } });
+    return { features: features, present: Object.keys(present) };
+  }
+
+  function setRouteFeatures(features) {
     map.getSource("route").setData({
       type: "FeatureCollection",
-      features: [
-        { type: "Feature", properties: { kind: kind }, geometry: geometry },
+      features: features.concat([
         { type: "Feature", properties: { role: "origin" }, geometry: { type: "Point", coordinates: routeState.origin } },
         { type: "Feature", properties: { role: "dest" }, geometry: { type: "Point", coordinates: routeState.dest } }
-      ]
+      ])
     });
   }
 
@@ -920,34 +998,45 @@
   function computeRoute() {
     if (!routeState.origin || !routeState.dest) return;
     var o = routeState.origin, d = routeState.dest;
+    var mode = routeState.mode;
     renderRoutePanel("Прокладываю маршрут…");
-    var url = OSRM_URL + o[0] + "," + o[1] + ";" + d[0] + "," + d[1] + "?overview=full&geometries=geojson";
+    var url = BROUTER_URL + "?lonlats=" + o[0] + "," + o[1] + "|" + d[0] + "," + d[1] +
+              "&profile=" + BROUTER_PROFILE[mode] + "&alternativeidx=0&format=geojson";
     fetch(url)
       .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data && data.code === "Ok" && data.routes && data.routes.length) {
-          var rt = data.routes[0];
-          setRouteData(rt.geometry, "route");
-          renderRoutePanel(null, { dist: rt.distance, dur: rt.duration, straight: false });
-          fitRoute(rt.geometry.coordinates);
-        } else {
-          straightFallback();
+      .then(function (gj) {
+        var f = gj && gj.features && gj.features[0];
+        if (!f || !f.geometry || f.geometry.type !== "LineString" || f.geometry.coordinates.length < 2) {
+          throw new Error("no route");
         }
+        if (mode !== routeState.mode) return; // профиль сменили пока грузилось
+        var coords = f.geometry.coordinates;
+        var props = f.properties || {};
+        var seg = buildSurfaceSegments(coords, props.messages, mode);
+        setRouteFeatures(seg.features);
+        var dist = parseFloat(props["track-length"]);
+        var dur = parseFloat(props["total-time"]);
+        var res = { dist: isNaN(dist) ? null : dist, dur: isNaN(dur) ? null : dur, straight: false, mode: mode, surfaces: seg.present };
+        routeState.lastResult = res;
+        renderRoutePanel(null, res);
+        fitRoute(coords);
       })
       .catch(function () { straightFallback(); });
   }
 
   function straightFallback() {
     var o = routeState.origin, d = routeState.dest;
-    setRouteData({ type: "LineString", coordinates: [o, d] }, "straight");
-    var dist = turf.distance(turf.point(o), turf.point(d), { units: "kilometers" }) * 1000;
-    renderRoutePanel(null, { dist: dist, dur: null, straight: true });
+    setRouteFeatures([{ type: "Feature", properties: { kind: "straight" }, geometry: { type: "LineString", coordinates: [o, d] } }]);
+    var res = { dist: distM(o, d), dur: null, straight: true, mode: routeState.mode, surfaces: [] };
+    routeState.lastResult = res;
+    renderRoutePanel(null, res);
     fitRoute([o, d]);
   }
 
   function clearRoute() {
     routeState.dest = null;
     routeState.pickMode = false;
+    routeState.lastResult = null;
     if (map.getSource("route")) map.getSource("route").setData(EMPTY_FC);
     map.getCanvas().style.cursor = "";
     routePanel.style.display = "none";
@@ -955,11 +1044,17 @@
 
   function renderRoutePanel(statusMsg, result) {
     if (!routePanel) return;
+    if (result === undefined) result = routeState.lastResult;
     var html = '<div class="route-head"><b>🧭 Маршрут</b>' +
                '<button type="button" class="route-close" title="Закрыть">✕</button></div>';
     html += '<div class="route-dest">До: <b>' + escapeHtml(routeState.destName || "") + "</b></div>";
     html += '<div class="route-origin">Старт: ' +
             (routeState.origin ? escapeHtml(routeState.originLabel) : "<i>не задан</i>") + "</div>";
+    // Переключатель профиля
+    html += '<div class="route-modes">' +
+            '<button type="button" data-mode="car" class="' + (routeState.mode === "car" ? "active" : "") + '">🚗 На авто</button>' +
+            '<button type="button" data-mode="foot" class="' + (routeState.mode === "foot" ? "active" : "") + '">🚶 Пешком</button>' +
+            "</div>";
     html += '<div class="route-btns">' +
             '<button type="button" data-act="geo">📍 Моё местоположение</button>' +
             '<button type="button" data-act="pick">🖱 Указать на карте</button>' +
@@ -969,17 +1064,35 @@
     if (result) {
       html += '<div class="route-result">Расстояние: <b>' + fmtDist(result.dist) + "</b>";
       if (result.straight) {
-        html += ' <span class="route-note">(по прямой — дорога не найдена)</span>';
+        html += ' <span class="route-note">(по прямой — маршрут по дорогам не найден)</span>';
       } else if (result.dur != null) {
-        html += " · В пути: <b>" + fmtDur(result.dur) + "</b> <span class=\"route-note\">(на авто)</span>";
+        html += " · В пути: <b>" + fmtDur(result.dur) + "</b> <span class=\"route-note\">(" +
+                (result.mode === "foot" ? "пешком" : "на авто") + ")</span>";
       }
       html += "</div>";
+      if (result.surfaces && result.surfaces.length) {
+        html += '<div class="route-legend"><div class="route-legend-title">Покрытие участков:</div>';
+        result.surfaces.forEach(function (s) {
+          html += '<div class="route-legend-item"><span class="route-chip" style="background:' +
+                  (SURF_COLORS[s] || "#8894a3") + '"></span>' + escapeHtml(s) + "</div>";
+        });
+        html += "</div>";
+      }
     }
     html += '<button type="button" class="route-clear">Очистить маршрут</button>';
     routePanel.innerHTML = html;
 
     routePanel.querySelector(".route-close").onclick = clearRoute;
     routePanel.querySelector(".route-clear").onclick = clearRoute;
+    routePanel.querySelectorAll(".route-modes button").forEach(function (b) {
+      b.onclick = function () {
+        var m = b.getAttribute("data-mode");
+        if (m === routeState.mode) return;
+        routeState.mode = m;
+        if (routeState.origin && routeState.dest) computeRoute();
+        else renderRoutePanel();
+      };
+    });
     routePanel.querySelectorAll(".route-btns button").forEach(function (b) {
       b.onclick = function () {
         var act = b.getAttribute("data-act");
