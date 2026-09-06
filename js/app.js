@@ -816,7 +816,7 @@
   //  Даёт геометрию + теги дорог (surface/highway) и профили авто/пешком
   // ============================================================
   var BROUTER_URL = "https://brouter.de/brouter";
-  var BROUTER_PROFILE = { car: "car-fast", foot: "hiking-mountain" };
+  var BROUTER_PROFILE = { car: "car-fast", track: "trekking", foot: "hiking-mountain" };
   var PETROPAVLOVSK = [158.6505, 53.0195];
   var routeState = {
     origin: null, originLabel: "", dest: null, destName: "", pickMode: false, mode: "car", lastResult: null,
@@ -1148,15 +1148,15 @@
     routeState.driveTimes = null;
     clearDismount(false);
     renderRoutePanel("Прокладываю маршрут…");
-    brouter(o, d, "car").then(function (car) {
+    driveTo(o, d).then(function (car) {
       if (reqId !== routeReq) return;
       if (car) { finishWithCar(reqId, car, d); return; }
       // Цель не привязалась к дороге у BRouter — ищем ближайшую точку РЕАЛЬНОЙ
-      // дороги через Overpass и едем на авто именно туда (по основной трассе)
+      // дороги через Overpass и едем именно туда (по основной трассе)
       nearestRoadPoint(d).then(function (roadPt) {
         if (reqId !== routeReq) return;
         if (roadPt) {
-          brouter(o, roadPt, "car").then(function (car2) {
+          driveTo(o, roadPt).then(function (car2) {
             if (reqId !== routeReq) return;
             if (car2) { finishWithCar(reqId, car2, d); return; }
             carApproach(reqId, o, d, APPROACH_FRACS);
@@ -1168,11 +1168,20 @@
     }).catch(function () { if (reqId === routeReq) straightFallback(); });
   }
 
-  var APPROACH_FRACS = [0.97, 0.92, 0.85, 0.75, 0.6, 0.4];
+  var APPROACH_FRACS = [0.9, 0.7, 0.45];
 
-  // Ближайшая к точке вершина проезжей дороги (из OSM через Overpass, радиус 30 км)
+  // Авто-плечо: сначала авто-профиль; если он отказал (паром, грунтовки — как дорога
+  // Козыревск→Ключи) — профиль trekking: идёт по тем же дорогам, но разрешает паромы
+  // и любые покрытия. Время всё равно считаем сами по тегам покрытия (VEHICLE_SPEED).
+  function driveTo(a, b) {
+    return brouter(a, b, "car").then(function (car) {
+      return car || brouter(a, b, "track");
+    });
+  }
+
+  // Ближайшая к точке вершина проезжей дороги (из OSM через Overpass, радиус 15 км)
   function nearestRoadPoint(pt) {
-    var q = "[out:json][timeout:20];way(around:30000," + pt[1] + "," + pt[0] +
+    var q = "[out:json][timeout:10];way(around:15000," + pt[1] + "," + pt[0] +
             ')["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|track|road)$"];out geom;';
     return fetch(osmEndpoint, { method: "POST", body: "data=" + encodeURIComponent(q) })
       .then(function (r) { return r.json(); })
@@ -1207,7 +1216,7 @@
     }
     var f = fracs[0];
     var p = [o[0] + (d[0] - o[0]) * f, o[1] + (d[1] - o[1]) * f];
-    brouter(o, p, "car").then(function (car) {
+    driveTo(o, p).then(function (car) {
       if (reqId !== routeReq) return;
       if (car) finishWithCar(reqId, car, d);
       else carApproach(reqId, o, d, fracs.slice(1));
