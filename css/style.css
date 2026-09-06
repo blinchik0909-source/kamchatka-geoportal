@@ -459,6 +459,7 @@ html, body {
   font-size: 12.5px;
 }
 .route-total-line { margin-top: 3px; font-size: 12px; color: #334155; }
+.route-bd-note { margin: -2px 0 4px 26px; font-size: 11px; color: #64748b; }
 .route-chip { width: 18px; height: 5px; border-radius: 2px; display: inline-block; flex: 0 0 auto; }
 .route-btns { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
 .route-btns button {
