@@ -824,18 +824,21 @@
   // Классификация покрытия дороги → фаза маршрута
   var PHASE_COLORS = {
     "Хорошая дорога": "#1a73e8",
+    "Гравийная трасса": "#8e24aa",
     "Просёлок": "#e8912b",
     "Пешком": "#2e9e4f"
   };
-  var PHASE_ORDER = ["Хорошая дорога", "Просёлок", "Пешком"];
-  // Реалистичные средние скорости по этапам (м/с), откалиброванные под Камчатку:
-  //  - асфальт есть только на трассе Петропавловск–Мильково–Ключи;
-  //  - к вулканам ведут тяжёлые внедорожные треки (вахтовки идут ~15–20 км/ч);
-  //  - пешие подходы — по пересечёнке, время дополнительно корректируется набором высоты.
+  var PHASE_ORDER = ["Хорошая дорога", "Гравийная трасса", "Просёлок", "Пешком"];
+  // Реалистичные средние скорости по этапам (м/с), откалиброванные по отчётам туристов:
+  //  - ПКЦ→Козыревск: 470–500 км (300 асфальт + 170 гравийная трасса) реально едут 7–9 ч;
+  //  - Козыревск→«Клешня»: 70 км лесной дороги с бродами — 3–5 ч (вахтовки/подготовленные 4×4);
+  //  - пешие подходы — по пересечёнке, время дополнительно корректируется набором высоты
+  //    (восхождение на Толбачик: 12 км при наборе 1680 м занимает 5–6 ч — модель совпадает).
   var PHASE_SPEED = {
-    "Хорошая дорога": 55 / 3.6, // ~55 км/ч (асфальт с посёлками, постами, гравийными участками трассы)
-    "Просёлок": 18 / 3.6,       // ~18 км/ч (внедорожный трек, броды, вулканический шлак)
-    "Пешком": 4 / 3.6           // ~4 км/ч базово по ровному; набор высоты добавляется отдельно
+    "Хорошая дорога": 65 / 3.6,   // ~65 км/ч (асфальтовая трасса с посёлками и постами)
+    "Гравийная трасса": 45 / 3.6, // ~45 км/ч (отсыпанная гравийная трасса, напр. Мильково–Ключи)
+    "Просёлок": 15 / 3.6,         // ~15 км/ч (внедорожный трек, броды, вулканический шлак)
+    "Пешком": 4 / 3.6             // ~4 км/ч базово по ровному; набор высоты добавляется отдельно
   };
   var NAISMITH_SEC_PER_M = 6;   // правило Наисмита: +1 ч на каждые 600 м набора высоты
   var FOOT_SPEED = PHASE_SPEED["Пешком"]; // для пешего остатка по прямой
@@ -845,16 +848,19 @@
     tags = tags || "";
     var sm = /surface=([^\s]+)/.exec(tags);
     var s = sm ? sm[1] : "";
-    if (/(asphalt|paved|concrete|paving_stones|sett|cobblestone|metal|wood|chipseal)/.test(s)) return "hard";
-    if (/(gravel|fine_gravel|compacted|pebblestone|ground|dirt|earth|mud|sand|grass|unpaved|soil)/.test(s)) return "soft";
-    if (s) return "soft";
     var hm = /highway=([^\s]+)/.exec(tags);
     var h = hm ? hm[1] : "";
-    if (/(motorway|trunk|primary|secondary|tertiary|residential|living_street|unclassified|service)/.test(h)) return "hard";
-    if (/(track|path|footway|bridleway|steps|cycleway|pedestrian)/.test(h)) return "soft";
+    var majorRoad = /(motorway|trunk|primary|secondary|tertiary)/.test(h);
+    if (/(asphalt|paved|concrete|paving_stones|sett|cobblestone|metal|wood|chipseal)/.test(s)) return "hard";
+    if (s) return majorRoad ? "grade" : "soft"; // грунт/гравий: на трассе — отсыпка, иначе просёлок
+    if (majorRoad || /(residential|living_street|unclassified|service)/.test(h)) return "hard";
     return "soft";
   }
-  function classifyDrivePhase(surf) { return surf === "hard" ? "Хорошая дорога" : "Просёлок"; }
+  function classifyDrivePhase(surf) {
+    if (surf === "hard") return "Хорошая дорога";
+    if (surf === "grade") return "Гравийная трасса";
+    return "Просёлок";
+  }
 
   function setupRouting() {
     map.addSource("route", { type: "geojson", data: EMPTY_FC });
@@ -872,6 +878,7 @@
       paint: {
         "line-color": ["match", ["get", "phase"],
           "Хорошая дорога", PHASE_COLORS["Хорошая дорога"],
+          "Гравийная трасса", PHASE_COLORS["Гравийная трасса"],
           "Просёлок", PHASE_COLORS["Просёлок"], "#8894a3"],
         "line-width": 5
       }
