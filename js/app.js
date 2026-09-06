@@ -923,7 +923,7 @@
       filter: ["==", "$type", "Point"],
       paint: {
         "circle-radius": 6,
-        "circle-color": ["match", ["get", "role"], "origin", "#34a853", "dest", "#e8453c", "dismount", "#f0883e", "#888888"],
+        "circle-color": ["match", ["get", "role"], "origin", "#34a853", "dest", "#e8453c", "dismount", "#f0883e", "route-end", "#64748b", "#888888"],
         "circle-stroke-color": "#ffffff", "circle-stroke-width": 2
       }
     });
@@ -1141,7 +1141,7 @@
     if (!routeState.origin || !routeState.dest) return;
     var reqId = ++routeReq;
     var o = routeState.origin, d = routeState.dest;
-    routeState.unknownCoords = null;
+    routeState.unknownCoords = null; // eslint-disable-line
     routeState.driveTimes = null;
     clearDismount(false);
     renderRoutePanel("Прокладываю маршрут…");
@@ -1251,6 +1251,7 @@
     var features = [], stats = {};
     var allCoords = [];
     var footAscent = 0;
+    var cutoffRem = 0; // остаток до цели, который сайт вычислить не может
 
     if (car) {
       var L = buildLeg(car.coords, car.messages, classifyDrivePhase, "drive");
@@ -1267,15 +1268,14 @@
       footAscent = computeAscent(foot.coords);
       routeState.unknownCoords = foot.coords;
     } else if (car) {
-      // Пеший маршрут не построился — дотягиваем прямой пеший остаток до цели
+      // Пеший маршрут не построился, ближе дорог/троп нет — ПРЯМУЮ НЕ рисуем
+      // (идти по прямой через тайгу — безумие): ставим маркер
+      // «конец вычисляемого маршрута» и честно сообщаем об остатке
       var carEnd = car.coords[car.coords.length - 1];
       var rem = distM(carEnd, dest);
       if (rem >= 80) {
-        features.push({ type: "Feature", properties: { kind: "seg", segType: "foot", phase: UNKNOWN_PHASE }, geometry: { type: "LineString", coordinates: [carEnd, dest] } });
-        if (!stats[UNKNOWN_PHASE]) stats[UNKNOWN_PHASE] = { dist: 0 };
-        stats[UNKNOWN_PHASE].dist += rem;
-        allCoords.push(dest);
-        routeState.unknownCoords = [carEnd, dest];
+        features.push({ type: "Feature", properties: { role: "route-end" }, geometry: { type: "Point", coordinates: carEnd } });
+        cutoffRem = rem;
       }
     }
 
@@ -1308,16 +1308,17 @@
       if (footAscent > 5) unkItem.ascent = footAscent;
       breakdown.push(unkItem);
     }
-    var res = { straight: false, breakdown: breakdown, totDist: totDist };
+    var res = { straight: false, breakdown: breakdown, totDist: totDist, cutoff: cutoffRem };
     routeState.lastResult = res;
     renderRoutePanel(null, res);
-    if (allCoords.length) fitRoute(allCoords);
+    if (allCoords.length) fitRoute(allCoords.concat([dest]));
   }
 
+  // Ничего не построилось: прямую линию НЕ рисуем — только маркеры и честное сообщение
   function straightFallback() {
     var o = routeState.origin, d = routeState.dest;
-    setRouteFeatures([{ type: "Feature", properties: { kind: "straight" }, geometry: { type: "LineString", coordinates: [o, d] } }]);
-    var res = { straight: true, breakdown: [], totDist: distM(o, d), totTime: 0 };
+    setRouteFeatures([]);
+    var res = { straight: true, breakdown: [], totDist: distM(o, d) };
     routeState.lastResult = res;
     renderRoutePanel(null, res);
     fitRoute([o, d]);
@@ -1352,8 +1353,8 @@
     if (statusMsg) html += '<div class="route-status">' + escapeHtml(statusMsg) + "</div>";
     if (result) {
       if (result.straight) {
-        html += '<div class="route-result">Расстояние: <b>' + fmtDist(result.totDist) +
-                '</b> <span class="route-note">(по прямой — маршрут не найден)</span></div>';
+        html += '<div class="route-cutoff">⛔ Маршрут вычислить не удалось — дорог и троп до этой точки в OSM нет. ' +
+                'До цели по прямой: <b>' + fmtDist(result.totDist) + '</b>.</div>';
       } else if (result.breakdown && result.breakdown.length) {
         html += '<div class="route-breakdown"><div class="route-bd-title">Время в пути:</div>';
         result.breakdown.forEach(function (b) {
@@ -1410,6 +1411,11 @@
             html += '<button type="button" class="route-dismount-btn" data-act="dismount">🥾 Отметить спешивание</button>';
           }
           html += "</div>";
+        }
+        if (result.cutoff) {
+          html += '<div class="route-cutoff">⛔ <b>Конец вычисляемого маршрута</b> (серая точка): ' +
+                  'дальше дорог и троп в OSM нет — сайт помочь не может. ' +
+                  'До цели остаётся ещё <b>' + fmtDist(result.cutoff) + '</b> по прямой.</div>';
         }
       }
     }
