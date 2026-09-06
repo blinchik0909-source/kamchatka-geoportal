@@ -818,7 +818,11 @@
   var BROUTER_URL = "https://brouter.de/brouter";
   var BROUTER_PROFILE = { car: "car-fast", foot: "hiking-mountain" };
   var PETROPAVLOVSK = [158.6505, 53.0195];
-  var routeState = { origin: null, originLabel: "", dest: null, destName: "", pickMode: false, mode: "car", lastResult: null };
+  var routeState = {
+    origin: null, originLabel: "", dest: null, destName: "", pickMode: false, mode: "car", lastResult: null,
+    // Спешивание на «неизвестном» участке: геометрия участка, время езды по дорогам, точка спешивания
+    unknownCoords: null, driveTimes: null, dismount: null, pickDismount: false, lastFeatures: []
+  };
   var routePanel = null;
 
   // Классификация покрытия дороги → фаза маршрута
@@ -858,6 +862,12 @@
   };
   VEHICLE_SPEED["Вахтовка"][UNKNOWN_PHASE] = 15 / 3.6;
   VEHICLE_SPEED["Вездеход"][UNKNOWN_PHASE] = 12 / 3.6;
+  // Пеший вариант преодоления «неизвестного» участка (если машина не пройдёт):
+  var FOOT_SPEED = 4 / 3.6;     // ~4 км/ч по ровному
+  var NAISMITH_SEC_PER_M = 6;   // правило Наисмита: +1 ч на каждые 600 м набора высоты
+  function footTime(distMeters, ascentMeters) {
+    return distMeters / FOOT_SPEED + (ascentMeters || 0) * NAISMITH_SEC_PER_M;
+  }
   var routeReq = 0;      // счётчик запросов (игнор устаревших ответов)
 
   function surfaceFromTags(tags) {
@@ -916,7 +926,7 @@
       filter: ["==", "$type", "Point"],
       paint: {
         "circle-radius": 6,
-        "circle-color": ["match", ["get", "role"], "origin", "#34a853", "dest", "#e8453c", "#888888"],
+        "circle-color": ["match", ["get", "role"], "origin", "#34a853", "dest", "#e8453c", "dismount", "#f0883e", "#888888"],
         "circle-stroke-color": "#ffffff", "circle-stroke-width": 2
       }
     });
@@ -927,6 +937,12 @@
     document.getElementById("map").appendChild(routePanel);
 
     map.on("click", function (e) {
+      if (routeState.pickDismount) {
+        routeState.pickDismount = false;
+        map.getCanvas().style.cursor = "";
+        setDismount([e.lngLat.lng, e.lngLat.lat]);
+        return;
+      }
       if (!routeState.pickMode) return;
       routeState.pickMode = false;
       map.getCanvas().style.cursor = "";
@@ -1045,13 +1061,54 @@
   }
 
   function setRouteFeatures(features) {
-    map.getSource("route").setData({
-      type: "FeatureCollection",
-      features: features.concat([
-        { type: "Feature", properties: { role: "origin" }, geometry: { type: "Point", coordinates: routeState.origin } },
-        { type: "Feature", properties: { role: "dest" }, geometry: { type: "Point", coordinates: routeState.dest } }
-      ])
+    routeState.lastFeatures = features;
+    var pts = [
+      { type: "Feature", properties: { role: "origin" }, geometry: { type: "Point", coordinates: routeState.origin } },
+      { type: "Feature", properties: { role: "dest" }, geometry: { type: "Point", coordinates: routeState.dest } }
+    ];
+    if (routeState.dismount) {
+      pts.push({ type: "Feature", properties: { role: "dismount" }, geometry: { type: "Point", coordinates: routeState.dismount.coord } });
+    }
+    map.getSource("route").setData({ type: "FeatureCollection", features: features.concat(pts) });
+  }
+
+  // Точка спешивания: привязываем клик к ближайшей вершине «неизвестного» участка
+  // и считаем: на транспорте до точки + пешком от точки до цели (с набором высоты)
+  function setDismount(lngLat) {
+    var cs = routeState.unknownCoords;
+    if (!cs || cs.length < 2) return;
+    var best = 0, bd = Infinity;
+    for (var i = 0; i < cs.length; i++) {
+      var d = distM(lngLat, cs[i]);
+      if (d < bd) { bd = d; best = i; }
+    }
+    var distTo = 0, distRem = 0;
+    for (var k = 1; k < cs.length; k++) {
+      var dd = distM(cs[k - 1], cs[k]);
+      if (k <= best) distTo += dd; else distRem += dd;
+    }
+    var ascentRem = computeAscent(cs.slice(best));
+    var walk = footTime(distRem, ascentRem);
+    var vehTimes = {};
+    VEHICLE_ORDER.forEach(function (veh) {
+      var driveT = (routeState.driveTimes && routeState.driveTimes[veh]) || 0;
+      vehTimes[veh] = driveT + distTo / VEHICLE_SPEED[veh][UNKNOWN_PHASE];
     });
+    routeState.dismount = {
+      coord: cs[best].slice(0, 2), distTo: distTo, distRem: distRem,
+      ascentRem: ascentRem, walkTime: walk, vehTimes: vehTimes
+    };
+    setRouteFeatures(routeState.lastFeatures);
+    renderRoutePanel();
+  }
+
+  function clearDismount(rerender) {
+    routeState.dismount = null;
+    routeState.pickDismount = false;
+    if (rerender) {
+      setRouteFeatures(routeState.lastFeatures);
+      renderRoutePanel();
+    }
   }
 
   function fitRoute(coords) {
@@ -1083,6 +1140,9 @@
     if (!routeState.origin || !routeState.dest) return;
     var reqId = ++routeReq;
     var o = routeState.origin, d = routeState.dest;
+    routeState.unknownCoords = null;
+    routeState.driveTimes = null;
+    clearDismount(false);
     renderRoutePanel("Прокладываю маршрут…");
     brouter(o, d, "car").then(function (car) {
       if (reqId !== routeReq) return;
@@ -1121,8 +1181,9 @@
       features = features.concat(F.features);
       mergeStats(stats, F.stats);
       allCoords = allCoords.concat(foot.coords);
-      // Набор высоты показываем справочно для «неизвестного» участка
+      // Набор высоты — для пешей оценки «неизвестного» участка
       footAscent = computeAscent(foot.coords);
+      routeState.unknownCoords = foot.coords;
     } else if (car) {
       // Пеший маршрут не построился — дотягиваем прямой пеший остаток до цели
       var carEnd = car.coords[car.coords.length - 1];
@@ -1132,6 +1193,7 @@
         if (!stats[UNKNOWN_PHASE]) stats[UNKNOWN_PHASE] = { dist: 0 };
         stats[UNKNOWN_PHASE].dist += rem;
         allCoords.push(dest);
+        routeState.unknownCoords = [carEnd, dest];
       }
     }
 
@@ -1142,16 +1204,24 @@
     var totDist = allPhases.reduce(function (a, p) { return a + stats[p].dist; }, 0);
     var unkDist = stats[UNKNOWN_PHASE] ? stats[UNKNOWN_PHASE].dist : 0;
     var breakdown = [];
+    routeState.driveTimes = {};
     if (totDist > 0) {
       VEHICLE_ORDER.forEach(function (veh) {
         var t = allPhases.reduce(function (a, p) { return a + vehicleTime(stats[p].dist, p, veh); }, 0);
+        // время только по дорогам (без неизвестного участка) — нужно для расчёта спешивания
+        routeState.driveTimes[veh] = t - vehicleTime(unkDist, UNKNOWN_PHASE, veh);
         breakdown.push({ phase: veh, dist: totDist, time: t, kind: "drive" });
       });
     }
     if (unkDist > 0) {
       var unkItem = {
         phase: UNKNOWN_PHASE, dist: unkDist, kind: "unknown",
-        note: "нет данных о дороге в OSM — время оценено как по внедорожному участку"
+        // два сценария преодоления участка без дорог в OSM
+        driveVariant: VEHICLE_ORDER.map(function (veh) {
+          return { icon: VEHICLE_ICONS[veh], time: vehicleTime(unkDist, UNKNOWN_PHASE, veh) };
+        }),
+        footVariant: footTime(unkDist, footAscent),
+        note: "нет данных о дороге в OSM — проходимость не гарантирована"
       };
       if (footAscent > 5) unkItem.ascent = footAscent;
       breakdown.push(unkItem);
@@ -1175,6 +1245,10 @@
     routeState.dest = null;
     routeState.pickMode = false;
     routeState.lastResult = null;
+    routeState.unknownCoords = null;
+    routeState.driveTimes = null;
+    routeState.lastFeatures = [];
+    clearDismount(false);
     if (map.getSource("route")) map.getSource("route").setData(EMPTY_FC);
     map.getCanvas().style.cursor = "";
     routePanel.style.display = "none";
@@ -1209,9 +1283,38 @@
                   '<span class="route-chip" style="background:' + (VEHICLE_COLORS[b.phase] || "#8894a3") + '"></span>' +
                   '<span class="route-bd-phase">' + icon + " " + escapeHtml(b.phase) + "</span>" +
                   '<span class="route-bd-val">' + val + "</span></div>";
+          if (b.kind === "unknown") {
+            // два сценария: проезд на машине / пешком
+            if (b.driveVariant) {
+              html += '<div class="route-bd-variant">если проедет машина: ' +
+                      b.driveVariant.map(function (v) { return v.icon + " " + fmtDur(v.time); }).join(" / ") + "</div>";
+            }
+            if (typeof b.footVariant === "number") {
+              html += '<div class="route-bd-variant">если пешком: 🚶 ' + fmtDur(b.footVariant) + "</div>";
+            }
+          }
           if (b.note) html += '<div class="route-note route-bd-note">' + escapeHtml(b.note) + "</div>";
         });
         html += "</div>";
+        // Спешивание на «неизвестном» участке
+        if (routeState.unknownCoords) {
+          html += '<div class="route-dismount">';
+          if (routeState.dismount) {
+            var dm = routeState.dismount;
+            html += '<div class="route-bd-title">🥾 Спешивание:</div>';
+            html += '<div class="route-bd-variant">до точки (' + fmtDist(dm.distTo) + " по участку): " +
+                    VEHICLE_ORDER.map(function (veh) { return VEHICLE_ICONS[veh] + " " + fmtDur(dm.vehTimes[veh]); }).join(" / ") + "</div>";
+            var walkVal = fmtDist(dm.distRem) + " · " + fmtDur(dm.walkTime);
+            if (dm.ascentRem > 5) walkVal += ' <span class="route-note">↑' + Math.round(dm.ascentRem) + " м</span>";
+            html += '<div class="route-bd-variant">дальше пешком: 🚶 ' + walkVal + "</div>";
+            html += '<div class="route-bd-variant">всего до цели: ' +
+                    VEHICLE_ORDER.map(function (veh) { return VEHICLE_ICONS[veh] + "+🚶 <b>" + fmtDur(dm.vehTimes[veh] + dm.walkTime) + "</b>"; }).join(" / ") + "</div>";
+            html += '<button type="button" class="route-dismount-btn" data-act="dismount-clear">✖ Сбросить спешивание</button>';
+          } else {
+            html += '<button type="button" class="route-dismount-btn" data-act="dismount">🥾 Отметить спешивание</button>';
+          }
+          html += "</div>";
+        }
       }
     }
     html += '<button type="button" class="route-clear">Очистить маршрут</button>';
@@ -1228,6 +1331,18 @@
           routeState.pickMode = true;
           map.getCanvas().style.cursor = "crosshair";
           renderRoutePanel("Кликните на карте, чтобы задать точку старта.");
+        }
+      };
+    });
+    routePanel.querySelectorAll(".route-dismount-btn").forEach(function (b) {
+      b.onclick = function () {
+        var act = b.getAttribute("data-act");
+        if (act === "dismount") {
+          routeState.pickDismount = true;
+          map.getCanvas().style.cursor = "crosshair";
+          renderRoutePanel("Кликните на зелёном пунктирном участке — где вы спешиваетесь (точка привяжется к маршруту).");
+        } else if (act === "dismount-clear") {
+          clearDismount(true);
         }
       };
     });
