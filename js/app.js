@@ -1141,7 +1141,7 @@
     if (!routeState.origin || !routeState.dest) return;
     var reqId = ++routeReq;
     var o = routeState.origin, d = routeState.dest;
-    routeState.unknownCoords = null; // eslint-disable-line
+    routeState.unknownCoords = null;
     routeState.driveTimes = null;
     clearDismount(false);
     renderRoutePanel("Прокладываю маршрут…");
