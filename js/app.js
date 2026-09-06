@@ -1149,20 +1149,25 @@
       if (reqId !== routeReq) return;
       if (car) { finishWithCar(reqId, car, d); return; }
       // Цель не привязалась к дороге у BRouter — ищем ближайшую точку РЕАЛЬНОЙ
-      // дороги через Overpass и едем именно туда (по основной трассе)
-      nearestRoadPoint(d).then(function (roadPt) {
-        if (reqId !== routeReq) return;
-        if (roadPt) {
-          driveTo(o, roadPt).then(function (car2) {
-            if (reqId !== routeReq) return;
-            if (car2) { finishWithCar(reqId, car2, d); return; }
-            carApproach(reqId, o, d, APPROACH_FRACS);
-          });
-        } else {
-          carApproach(reqId, o, d, APPROACH_FRACS);
-        }
-      });
+      // дороги/просёлка через Overpass, расширяя радиус поиска, и едем туда:
+      // даже далёкий просёлок подводит ближе к цели, чем прямая через тайгу
+      roadApproach(reqId, o, d, [15000, 40000]);
     }).catch(function () { if (reqId === routeReq) straightFallback(); });
+  }
+
+  // Каскад радиусов поиска дороги у цели; резерв — перебор точек на прямой
+  function roadApproach(reqId, o, d, radii) {
+    if (reqId !== routeReq) return;
+    if (!radii.length) { carApproach(reqId, o, d, APPROACH_FRACS); return; }
+    nearestRoadPoint(d, radii[0]).then(function (roadPt) {
+      if (reqId !== routeReq) return;
+      if (!roadPt) { roadApproach(reqId, o, d, radii.slice(1)); return; }
+      driveTo(o, roadPt).then(function (car) {
+        if (reqId !== routeReq) return;
+        if (car) finishWithCar(reqId, car, d);
+        else roadApproach(reqId, o, d, radii.slice(1));
+      });
+    });
   }
 
   var APPROACH_FRACS = [0.9, 0.7, 0.45];
@@ -1176,9 +1181,9 @@
     });
   }
 
-  // Ближайшая к точке вершина проезжей дороги (из OSM через Overpass, радиус 15 км)
-  function nearestRoadPoint(pt) {
-    var q = "[out:json][timeout:10];way(around:15000," + pt[1] + "," + pt[0] +
+  // Ближайшая к точке вершина проезжей дороги/просёлка (OSM через Overpass)
+  function nearestRoadPoint(pt, radius) {
+    var q = "[out:json][timeout:15];way(around:" + (radius || 15000) + "," + pt[1] + "," + pt[0] +
             ')["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|track|road)$"];out geom;';
     return fetch(osmEndpoint, { method: "POST", body: "data=" + encodeURIComponent(q) })
       .then(function (r) { return r.json(); })
