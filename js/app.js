@@ -1135,7 +1135,11 @@
       .catch(function () { return null; });
   }
 
-  // Мультимодальный маршрут: авто до ближайшей проезжей точки, затем пешком до цели
+  // Мультимодальный маршрут: авто как можно БЛИЖЕ к цели, затем пешком/напрямую.
+  // ВАЖНО: раньше при неудаче авто-маршрута весь путь строился пешим профилем —
+  // BRouter уводил трек по тропам за сотни км (кривые маршруты). Теперь:
+  //  1) авто прямо до цели; если нет — подбор ближайшей достижимой точки (carApproach);
+  //  2) пеший финал проверяется на адекватность (footSane), иначе прямой отрезок.
   function computeRoute() {
     if (!routeState.origin || !routeState.dest) return;
     var reqId = ++routeReq;
@@ -1146,22 +1150,56 @@
     renderRoutePanel("Прокладываю маршрут…");
     brouter(o, d, "car").then(function (car) {
       if (reqId !== routeReq) return;
-      if (!car) {
-        // Авто-маршрута нет — пробуем целиком пешком
+      if (car) { finishWithCar(reqId, car, d); return; }
+      // Цель слишком далеко от дорог для привязки BRouter — пробуем точки
+      // на прямой старт→цель (от цели к старту): BRouter привяжет их к дороге
+      carApproach(reqId, o, d, [0.97, 0.92, 0.85, 0.75, 0.6, 0.4]);
+    }).catch(function () { if (reqId === routeReq) straightFallback(); });
+  }
+
+  // Подбор ближайшей к цели точки, достижимой на авто
+  function carApproach(reqId, o, d, fracs) {
+    if (reqId !== routeReq) return;
+    if (!fracs.length) {
+      // На авто не доехать вовсе: короткие маршруты пробуем пешим профилем, иначе прямая
+      if (distM(o, d) <= 30000) {
         brouter(o, d, "foot").then(function (foot) {
           if (reqId !== routeReq) return;
-          if (!foot) { straightFallback(); return; }
-          assemble(reqId, null, foot, d);
+          if (foot && footSane(foot, o, d)) assemble(reqId, null, foot, d);
+          else straightFallback();
         });
-        return;
+      } else {
+        straightFallback();
       }
-      var carEnd = car.coords[car.coords.length - 1];
-      if (distM(carEnd, d) < 80) { assemble(reqId, car, null, d); return; }
-      brouter(carEnd, d, "foot").then(function (foot) {
-        if (reqId !== routeReq) return;
-        assemble(reqId, car, foot, d);
-      });
-    }).catch(function () { if (reqId === routeReq) straightFallback(); });
+      return;
+    }
+    var f = fracs[0];
+    var p = [o[0] + (d[0] - o[0]) * f, o[1] + (d[1] - o[1]) * f];
+    brouter(o, p, "car").then(function (car) {
+      if (reqId !== routeReq) return;
+      if (car) finishWithCar(reqId, car, d);
+      else carApproach(reqId, o, d, fracs.slice(1));
+    });
+  }
+
+  // Авто-плечо готово: достраиваем финал до цели пешим профилем или прямой
+  function finishWithCar(reqId, car, d) {
+    var carEnd = car.coords[car.coords.length - 1];
+    if (distM(carEnd, d) < 80) { assemble(reqId, car, null, d); return; }
+    brouter(carEnd, d, "foot").then(function (foot) {
+      if (reqId !== routeReq) return;
+      // Абсурдный пеший крюк (длиннее прямой в 3+ раза) → прямой «неизвестный» отрезок
+      if (foot && !footSane(foot, carEnd, d)) foot = null;
+      assemble(reqId, car, foot, d);
+    });
+  }
+
+  // Проверка адекватности пешего плеча: не длиннее прямой более чем в 3 раза (+5 км допуск)
+  function footSane(foot, a, b) {
+    var len = 0;
+    for (var i = 1; i < foot.coords.length; i++) len += distM(foot.coords[i - 1], foot.coords[i]);
+    var straight = distM(a, b);
+    return len <= Math.max(straight * 3, straight + 5000);
   }
 
   function assemble(reqId, car, foot, dest) {
