@@ -1151,10 +1151,42 @@
     brouter(o, d, "car").then(function (car) {
       if (reqId !== routeReq) return;
       if (car) { finishWithCar(reqId, car, d); return; }
-      // Цель слишком далеко от дорог для привязки BRouter — пробуем точки
-      // на прямой старт→цель (от цели к старту): BRouter привяжет их к дороге
-      carApproach(reqId, o, d, [0.97, 0.92, 0.85, 0.75, 0.6, 0.4]);
+      // Цель не привязалась к дороге у BRouter — ищем ближайшую точку РЕАЛЬНОЙ
+      // дороги через Overpass и едем на авто именно туда (по основной трассе)
+      nearestRoadPoint(d).then(function (roadPt) {
+        if (reqId !== routeReq) return;
+        if (roadPt) {
+          brouter(o, roadPt, "car").then(function (car2) {
+            if (reqId !== routeReq) return;
+            if (car2) { finishWithCar(reqId, car2, d); return; }
+            carApproach(reqId, o, d, APPROACH_FRACS);
+          });
+        } else {
+          carApproach(reqId, o, d, APPROACH_FRACS);
+        }
+      });
     }).catch(function () { if (reqId === routeReq) straightFallback(); });
+  }
+
+  var APPROACH_FRACS = [0.97, 0.92, 0.85, 0.75, 0.6, 0.4];
+
+  // Ближайшая к точке вершина проезжей дороги (из OSM через Overpass, радиус 30 км)
+  function nearestRoadPoint(pt) {
+    var q = "[out:json][timeout:20];way(around:30000," + pt[1] + "," + pt[0] +
+            ')["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|track|road)$"];out geom;';
+    return fetch(osmEndpoint, { method: "POST", body: "data=" + encodeURIComponent(q) })
+      .then(function (r) { return r.json(); })
+      .then(function (osm) {
+        var best = null, bd = Infinity;
+        (osm.elements || []).forEach(function (el) {
+          (el.geometry || []).forEach(function (g) {
+            var dd = distM(pt, [g.lon, g.lat]);
+            if (dd < bd) { bd = dd; best = [g.lon, g.lat]; }
+          });
+        });
+        return best;
+      })
+      .catch(function () { return null; });
   }
 
   // Подбор ближайшей к цели точки, достижимой на авто
@@ -1188,18 +1220,19 @@
     if (distM(carEnd, d) < 80) { assemble(reqId, car, null, d); return; }
     brouter(carEnd, d, "foot").then(function (foot) {
       if (reqId !== routeReq) return;
-      // Абсурдный пеший крюк (длиннее прямой в 3+ раза) → прямой «неизвестный» отрезок
+      // Абсурдный пеший крюк (см. footSane) → прямой «неизвестный» отрезок
       if (foot && !footSane(foot, carEnd, d)) foot = null;
       assemble(reqId, car, foot, d);
     });
   }
 
-  // Проверка адекватности пешего плеча: не длиннее прямой более чем в 3 раза (+5 км допуск)
+  // Проверка адекватности пешего плеча: не длиннее прямой более чем в 2 раза (+3 км допуск);
+  // горные тропы реально длиннее прямой в 1.3–1.8 раза, но не в несколько раз
   function footSane(foot, a, b) {
     var len = 0;
     for (var i = 1; i < foot.coords.length; i++) len += distM(foot.coords[i - 1], foot.coords[i]);
     var straight = distM(a, b);
-    return len <= Math.max(straight * 3, straight + 5000);
+    return len <= Math.max(straight * 2, straight + 3000);
   }
 
   function assemble(reqId, car, foot, dest) {
