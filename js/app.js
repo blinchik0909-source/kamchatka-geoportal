@@ -1198,10 +1198,84 @@
   // Авто-плечо: сначала авто-профиль; если он отказал (паром, грунтовки — как дорога
   // Козыревск→Ключи) — профиль trekking: идёт по тем же дорогам, но разрешает паромы
   // и любые покрытия. Время всё равно считаем сами по тегам покрытия (VEHICLE_SPEED).
+  // Результат ОБЯЗАТЕЛЬНО пропускается через trimDriveLeg: BRouter может увести
+  // «машину» на пешую тропу или крутой склон вулкана — обрезаем плечо там.
   function driveTo(a, b) {
     return brouter(a, b, "car").then(function (car) {
-      return car || brouter(a, b, "track");
+      if (car) return trimDriveLeg(car);
+      return brouter(a, b, "track").then(trimDriveLeg);
     });
+  }
+
+  // Непроезжие для машины типы путей (trekking-фолбэк ходит и по тропам)
+  var NON_DRIVABLE_RE = /highway=(path|footway|steps|pedestrian|bridleway|via_ferrata)/;
+  var DRIVE_MAX_TAN = 0.25;   // ~14° вдоль пути: круче машина не поднимется/не спустится
+  var DRIVE_SLOPE_WIN = 300;  // м: окно оценки устойчивого уклона (не срезать короткие взлобки)
+
+  // Обрезает авто-плечо до реально проезжей части:
+  //  1) первый сегмент с непроезжим highway (тропа и т.п.);
+  //  2) первый участок с устойчивым уклоном > DRIVE_MAX_TAN (машина в вулкан не лезет).
+  // Остаток маршрута достроится обычным пешим финалом (finishWithCar).
+  function trimDriveLeg(leg) {
+    if (!leg || !leg.coords || leg.coords.length < 2) return leg;
+    var cutAt = Infinity;
+    // 1) тип пути из тегов BRouter
+    if (leg.messages && leg.messages.length > 1) {
+      var h = leg.messages[0];
+      var iT = h.indexOf("WayTags"), iD = h.indexOf("Distance");
+      var cum = 0;
+      for (var i = 1; i < leg.messages.length; i++) {
+        if (iT >= 0 && NON_DRIVABLE_RE.test(leg.messages[i][iT] || "")) { cutAt = cum; break; }
+        cum += parseFloat(leg.messages[i][iD]) || 0;
+      }
+    }
+    // 2) устойчивый уклон вдоль пути (по 3D-координатам BRouter, скользящее окно)
+    var cs = leg.coords;
+    var cd = [0];
+    for (var k = 1; k < cs.length; k++) cd.push(cd[k - 1] + distM(cs[k - 1], cs[k]));
+    var i0 = 0;
+    for (var j = 1; j < cs.length; j++) {
+      while (cd[j] - cd[i0 + 1] >= DRIVE_SLOPE_WIN && i0 + 1 < j) i0++;
+      var span = cd[j] - cd[i0];
+      if (span < DRIVE_SLOPE_WIN * 0.6) continue;
+      var e0 = cs[i0][2], e1 = cs[j][2];
+      if (typeof e0 !== "number" || typeof e1 !== "number") continue;
+      if (Math.abs(e1 - e0) / span > DRIVE_MAX_TAN) {
+        cutAt = Math.min(cutAt, cd[i0]);
+        break;
+      }
+    }
+    if (cutAt === Infinity) return leg;
+    if (cutAt < 150) return null; // проезжей части фактически нет
+    // Режем геометрию по дистанции cutAt
+    var outC = [cs[0]];
+    for (var m = 1; m < cs.length; m++) {
+      if (cd[m] > cutAt) break;
+      outC.push(cs[m]);
+    }
+    if (outC.length < 2) return null;
+    // Режем messages той же дистанцией — статистика фаз должна совпадать с геометрией
+    var outM = leg.messages;
+    if (leg.messages && leg.messages.length > 1) {
+      var h2 = leg.messages[0], iD2 = h2.indexOf("Distance");
+      outM = [h2];
+      var cum2 = 0;
+      for (var r = 1; r < leg.messages.length; r++) {
+        var d2 = parseFloat(leg.messages[r][iD2]) || 0;
+        if (cum2 + d2 >= cutAt) {
+          var rest = Math.max(0, cutAt - cum2);
+          if (rest > 1) {
+            var row = leg.messages[r].slice();
+            row[iD2] = String(Math.round(rest));
+            outM.push(row);
+          }
+          break;
+        }
+        outM.push(leg.messages[r]);
+        cum2 += d2;
+      }
+    }
+    return { coords: outC, messages: outM };
   }
 
   // Ближайшая к точке вершина проезжей дороги/просёлка (OSM через Overpass)
