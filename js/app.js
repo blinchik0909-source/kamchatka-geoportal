@@ -1135,8 +1135,8 @@
   // Мультимодальный маршрут: авто как можно БЛИЖЕ к цели, затем пешком/напрямую.
   // ВАЖНО: раньше при неудаче авто-маршрута весь путь строился пешим профилем —
   // BRouter уводил трек по тропам за сотни км (кривые маршруты). Теперь:
-  //  1) авто прямо до цели; если нет — подбор ближайшей достижимой точки (carApproach);
-  //  2) пеший финал проверяется на адекватность (footSane), иначе прямой отрезок.
+  //  1) авто прямо до цели; если нет — подбор ближайшей достижимой точки (roadApproach/carApproach);
+  //  2) пеший финал проверяется на адекватность (footSane), иначе — маркер конца маршрута.
   function computeRoute() {
     if (!routeState.origin || !routeState.dest) return;
     var reqId = ++routeReq;
@@ -1231,19 +1231,21 @@
     if (distM(carEnd, d) < 80) { assemble(reqId, car, null, d); return; }
     brouter(carEnd, d, "foot").then(function (foot) {
       if (reqId !== routeReq) return;
-      // Абсурдный пеший крюк (см. footSane) → прямой «неизвестный» отрезок
+      // Абсурдный пеший крюк (см. footSane) → маркер «конец вычисляемого маршрута»
       if (foot && !footSane(foot, carEnd, d)) foot = null;
       assemble(reqId, car, foot, d);
     });
   }
 
-  // Проверка адекватности пешего плеча: не длиннее прямой более чем в 2 раза (+3 км допуск);
-  // горные тропы реально длиннее прямой в 1.3–1.8 раза, но не в несколько раз
+  // Проверка адекватности пешего плеча: не длиннее прямой более чем в 3 раза (+3 км допуск).
+  // Извилистые пролесные дороги/тропы легитимно длиннее прямой в 2–3 раза; порог ×2
+  // отбраковывал хорошие маршруты. От многосоткилометровых петель защищает то, что
+  // авто-плечо (driveTo с trekking-фолбэком) теперь довозит максимально близко к цели.
   function footSane(foot, a, b) {
     var len = 0;
     for (var i = 1; i < foot.coords.length; i++) len += distM(foot.coords[i - 1], foot.coords[i]);
     var straight = distM(a, b);
-    return len <= Math.max(straight * 2, straight + 3000);
+    return len <= Math.max(straight * 3, straight + 3000);
   }
 
   function assemble(reqId, car, foot, dest) {
