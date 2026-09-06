@@ -835,13 +835,15 @@
   //  - Вездеход (гусеничный/ШЕРП/ТРЭКОЛ): медленнее по асфальту, увереннее на бездорожье.
   // Скорости (м/с) по типу покрытия, откалиброваны по отчётам туристов:
   //  - ПКЦ→Козыревск на вахтовке: 470–500 км (асфальт+гравий) — 7–9 ч;
-  //  - Козыревск→«Клешня» на вахтовке: 70 км лесной дороги с бродами — 3–5 ч;
-  //  - пеший финальный подход остаётся пешим (восхождение), время корректируется набором высоты.
+  //  - Козыревск→«Клешня» на вахтовке: 70 км лесной дороги с бродами — 3–5 ч.
   var VEHICLE_ORDER = ["Вахтовка", "Вездеход"];
   var VEHICLE_ICONS = { "Вахтовка": "🚛", "Вездеход": "🚜" };
   VEHICLE_ICONS[UNKNOWN_PHASE] = "❓";
   var VEHICLE_COLORS = { "Вахтовка": "#1a73e8", "Вездеход": "#8e24aa" };
   VEHICLE_COLORS[UNKNOWN_PHASE] = "#2e9e4f";
+  // «Неизвестный маршрут» (нет дорог в OSM) по факту проезжается тем же транспортом
+  // (вахтовки доезжают даже до кратеров типа Южной Звезды) — время оцениваем
+  // как по внедорожному треку.
   var VEHICLE_SPEED = {
     "Вахтовка": {
       "Хорошая дорога": 60 / 3.6,   // асфальтовая трасса с посёлками
@@ -854,14 +856,8 @@
       "Просёлок": 12 / 3.6          // зато уверенно идёт там, где вахтовка буксует
     }
   };
-  var NAISMITH_SEC_PER_M = 6;   // правило Наисмита: +1 ч на каждые 600 м набора высоты
-  var FOOT_SPEED = 4 / 3.6;     // ~4 км/ч по ровному; набор высоты добавляется отдельно
-  // Оценка проходимости «неизвестного» участка (нет дорог в OSM) на вездеходе:
-  //  - ГАЗ-71 идёт по целине/болоту 12–18 км/ч, ТРЭКОЛ по тундре ~25–30 км/ч → берём ~12 км/ч;
-  //  - предел подъёма вездеходов ~20°; при среднем уклоне участка >12% (конусы вулканов)
-  //    считаем, что реально только пешком (восхождение).
-  var UNKNOWN_ATV_SPEED = 12 / 3.6;  // вездеход вне дорог, м/с
-  var UNKNOWN_ATV_MAX_GRADE = 0.12;  // макс. средний уклон для проезда вездеходом
+  VEHICLE_SPEED["Вахтовка"][UNKNOWN_PHASE] = 15 / 3.6;
+  VEHICLE_SPEED["Вездеход"][UNKNOWN_PHASE] = 12 / 3.6;
   var routeReq = 0;      // счётчик запросов (игнор устаревших ответов)
 
   function surfaceFromTags(tags) {
@@ -1125,7 +1121,7 @@
       features = features.concat(F.features);
       mergeStats(stats, F.stats);
       allCoords = allCoords.concat(foot.coords);
-      // Поправка на набор высоты (правило Наисмита) — восхождения к вулканам медленные
+      // Набор высоты показываем справочно для «неизвестного» участка
       footAscent = computeAscent(foot.coords);
     } else if (car) {
       // Пеший маршрут не построился — дотягиваем прямой пеший остаток до цели
@@ -1140,47 +1136,27 @@
     }
 
     setRouteFeatures(features);
-    // Раскладка: проезжая часть — время на вахтовке и на вездеходе;
-    // «неизвестный» финал (нет дорог в OSM) — пешком, а при умеренном уклоне возможно и на вездеходе
-    var drivePhases = PHASE_ORDER.filter(function (p) { return p !== UNKNOWN_PHASE && stats[p]; });
-    var driveDist = drivePhases.reduce(function (a, p) { return a + stats[p].dist; }, 0);
+    // Раскладка: полное время до цели на вахтовке и на вездеходе
+    // («неизвестный» участок без дорог в OSM оценивается как внедорожный трек)
+    var allPhases = PHASE_ORDER.filter(function (p) { return stats[p]; });
+    var totDist = allPhases.reduce(function (a, p) { return a + stats[p].dist; }, 0);
+    var unkDist = stats[UNKNOWN_PHASE] ? stats[UNKNOWN_PHASE].dist : 0;
     var breakdown = [];
-    if (driveDist > 0) {
+    if (totDist > 0) {
       VEHICLE_ORDER.forEach(function (veh) {
-        var t = drivePhases.reduce(function (a, p) { return a + vehicleTime(stats[p].dist, p, veh); }, 0);
-        breakdown.push({ phase: veh, dist: driveDist, time: t, kind: "drive" });
+        var t = allPhases.reduce(function (a, p) { return a + vehicleTime(stats[p].dist, p, veh); }, 0);
+        breakdown.push({ phase: veh, dist: totDist, time: t, kind: "drive" });
       });
     }
-    var footTime = 0, unkDist = 0, unkAtvTime = null, unkNote = "";
-    if (stats[UNKNOWN_PHASE]) {
-      unkDist = stats[UNKNOWN_PHASE].dist;
-      footTime = unkDist / FOOT_SPEED + footAscent * NAISMITH_SEC_PER_M;
-      var grade = unkDist > 0 ? footAscent / unkDist : 0;
-      if (grade <= UNKNOWN_ATV_MAX_GRADE) {
-        unkAtvTime = unkDist / UNKNOWN_ATV_SPEED;
-        unkNote = "нет дороги в данных — уклон умеренный, вероятно проходимо на вездеходе";
-      } else {
-        unkNote = "нет дороги в данных — крутой набор высоты, вероятно только пешком";
-      }
-      var unkItem = { phase: UNKNOWN_PHASE, dist: unkDist, time: footTime, kind: "unknown", atvTime: unkAtvTime, note: unkNote };
+    if (unkDist > 0) {
+      var unkItem = {
+        phase: UNKNOWN_PHASE, dist: unkDist, kind: "unknown",
+        note: "нет данных о дороге в OSM — время оценено как по внедорожному участку"
+      };
       if (footAscent > 5) unkItem.ascent = footAscent;
       breakdown.push(unkItem);
     }
-    var totDist = driveDist + unkDist;
-    var totals = [];
-    if (driveDist > 0) {
-      VEHICLE_ORDER.forEach(function (veh) {
-        var driveT = 0;
-        breakdown.forEach(function (b) { if (b.phase === veh) driveT = b.time; });
-        // вездеход, вероятно, пройдёт и «неизвестный» участок; вахтовка — нет (пешком)
-        var unkT = (veh === "Вездеход" && unkAtvTime !== null) ? unkAtvTime : footTime;
-        totals.push({ label: veh === "Вездеход" ? "на вездеходе" : "на вахтовке", icon: VEHICLE_ICONS[veh], time: driveT + unkT });
-      });
-    } else if (unkDist > 0) {
-      totals.push({ label: "пешком", icon: "🚶", time: footTime });
-      if (unkAtvTime !== null) totals.push({ label: "на вездеходе (вероятно)", icon: VEHICLE_ICONS["Вездеход"], time: unkAtvTime });
-    }
-    var res = { straight: false, breakdown: breakdown, totDist: totDist, totals: totals };
+    var res = { straight: false, breakdown: breakdown, totDist: totDist };
     routeState.lastResult = res;
     renderRoutePanel(null, res);
     if (allCoords.length) fitRoute(allCoords);
@@ -1226,24 +1202,14 @@
         html += '<div class="route-breakdown"><div class="route-bd-title">Время в пути:</div>';
         result.breakdown.forEach(function (b) {
           var icon = VEHICLE_ICONS[b.phase] || "🚗";
-          var val = fmtDist(b.dist) + " · ";
-          if (b.kind === "unknown") {
-            val += "🚶 " + fmtDur(b.time);
-            if (b.atvTime !== null) val += " / 🚜 ~" + fmtDur(b.atvTime);
-          } else {
-            val += fmtDur(b.time);
-          }
+          var val = fmtDist(b.dist);
+          if (typeof b.time === "number") val += " · " + fmtDur(b.time);
           if (b.ascent) val += ' <span class="route-note">↑' + Math.round(b.ascent) + " м</span>";
           html += '<div class="route-bd-item">' +
                   '<span class="route-chip" style="background:' + (VEHICLE_COLORS[b.phase] || "#8894a3") + '"></span>' +
                   '<span class="route-bd-phase">' + icon + " " + escapeHtml(b.phase) + "</span>" +
                   '<span class="route-bd-val">' + val + "</span></div>";
           if (b.note) html += '<div class="route-note route-bd-note">' + escapeHtml(b.note) + "</div>";
-        });
-        html += "</div>";
-        html += '<div class="route-total">Итого: <b>' + fmtDist(result.totDist) + "</b>";
-        (result.totals || []).forEach(function (t) {
-          html += '<div class="route-total-line">' + t.icon + " " + escapeHtml(t.label) + ": <b>" + fmtDur(t.time) + "</b></div>";
         });
         html += "</div>";
       }
