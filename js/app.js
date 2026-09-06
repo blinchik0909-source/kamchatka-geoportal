@@ -827,10 +827,13 @@
 
   // Классификация покрытия дороги → фаза маршрута
   var UNKNOWN_PHASE = "Неизвестный маршрут"; // участок без дорог в OSM: пешком или, возможно, на вездеходе
+  // Все дорожные сегменты — ОДНИМ цветом (разделение по покрытию убрано по просьбе);
+  // классификация фаз остаётся — она нужна для расчёта времени по VEHICLE_SPEED
+  var ROAD_COLOR = "#1a73e8";
   var PHASE_COLORS = {
-    "Хорошая дорога": "#1a73e8",
-    "Гравийная трасса": "#8e24aa",
-    "Просёлок": "#e8912b"
+    "Хорошая дорога": ROAD_COLOR,
+    "Гравийная трасса": ROAD_COLOR,
+    "Просёлок": ROAD_COLOR
   };
   PHASE_COLORS[UNKNOWN_PHASE] = "#2e9e4f";
   var PHASE_ORDER = ["Хорошая дорога", "Гравийная трасса", "Просёлок", UNKNOWN_PHASE];
@@ -843,7 +846,7 @@
   var VEHICLE_ORDER = ["Вахтовка", "Вездеход"];
   var VEHICLE_ICONS = { "Вахтовка": "🚛", "Вездеход": "🚜" };
   VEHICLE_ICONS[UNKNOWN_PHASE] = "❓";
-  var VEHICLE_COLORS = { "Вахтовка": "#1a73e8", "Вездеход": "#8e24aa" };
+  var VEHICLE_COLORS = { "Вахтовка": ROAD_COLOR, "Вездеход": ROAD_COLOR };
   VEHICLE_COLORS[UNKNOWN_PHASE] = "#2e9e4f";
   // «Неизвестный маршрут» (нет дорог в OSM) по факту проезжается тем же транспортом
   // (вахтовки доезжают даже до кратеров типа Южной Звезды) — время оцениваем
@@ -896,18 +899,12 @@
       layout: { "line-join": "round", "line-cap": "round" },
       paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.75 }
     });
-    // Проезжие сегменты: сплошная линия, цвет по фазе (хорошая/просёлок)
+    // Проезжие сегменты: сплошная линия единого цвета
     map.addLayer({
       id: "route-drive", type: "line", source: "route",
       filter: ["all", ["==", ["get", "kind"], "seg"], ["==", ["get", "segType"], "drive"]],
       layout: { "line-join": "round", "line-cap": "round" },
-      paint: {
-        "line-color": ["match", ["get", "phase"],
-          "Хорошая дорога", PHASE_COLORS["Хорошая дорога"],
-          "Гравийная трасса", PHASE_COLORS["Гравийная трасса"],
-          "Просёлок", PHASE_COLORS["Просёлок"], "#8894a3"],
-        "line-width": 5
-      }
+      paint: { "line-color": ROAD_COLOR, "line-width": 5 }
     });
     // Пеший сегмент: зелёный пунктир
     map.addLayer({
