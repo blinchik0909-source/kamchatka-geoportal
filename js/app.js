@@ -1276,24 +1276,31 @@
         html += '<div class="route-breakdown"><div class="route-bd-title">Время в пути:</div>';
         result.breakdown.forEach(function (b) {
           var icon = VEHICLE_ICONS[b.phase] || "🚗";
-          var val = fmtDist(b.dist);
-          if (typeof b.time === "number") val += " · " + fmtDur(b.time);
-          if (b.ascent) val += ' <span class="route-note">↑' + Math.round(b.ascent) + " м</span>";
-          html += '<div class="route-bd-item">' +
-                  '<span class="route-chip" style="background:' + (VEHICLE_COLORS[b.phase] || "#8894a3") + '"></span>' +
-                  '<span class="route-bd-phase">' + icon + " " + escapeHtml(b.phase) + "</span>" +
-                  '<span class="route-bd-val">' + val + "</span></div>";
+          var chip = '<span class="route-chip" style="background:' + (VEHICLE_COLORS[b.phase] || "#8894a3") + '"></span>';
           if (b.kind === "unknown") {
-            // два сценария: проезд на машине / пешком
-            if (b.driveVariant) {
-              html += '<div class="route-bd-variant">если проедет машина: ' +
-                      b.driveVariant.map(function (v) { return v.icon + " " + fmtDur(v.time); }).join(" / ") + "</div>";
-            }
+            // Карточка неизвестного участка: дистанция/набор высоты + два сценария
+            html += '<div class="route-card">' +
+                    '<div class="route-card-head">' + chip +
+                    '<span class="route-card-name">' + icon + " " + escapeHtml(b.phase) + "</span>" +
+                    '<span class="route-card-dist">' + fmtDist(b.dist) +
+                    (b.ascent ? " · ↑" + Math.round(b.ascent) + " м" : "") + "</span></div>";
+            (b.driveVariant || []).forEach(function (v, i) {
+              html += '<div class="route-kv"><span>' + v.icon + " если проедет " +
+                      escapeHtml((VEHICLE_ORDER[i] || "").toLowerCase()) + "</span><b>" + fmtDur(v.time) + "</b></div>";
+            });
             if (typeof b.footVariant === "number") {
-              html += '<div class="route-bd-variant">если пешком: 🚶 ' + fmtDur(b.footVariant) + "</div>";
+              html += '<div class="route-kv"><span>🚶 если пешком</span><b>' + fmtDur(b.footVariant) + "</b></div>";
             }
+            if (b.note) html += '<div class="route-card-note">' + escapeHtml(b.note) + "</div>";
+            html += "</div>";
+          } else {
+            // Карточка транспорта: название + полное время, ниже — дистанция
+            html += '<div class="route-card">' +
+                    '<div class="route-card-head">' + chip +
+                    '<span class="route-card-name">' + icon + " " + escapeHtml(b.phase) + "</span>" +
+                    '<b class="route-card-time">' + fmtDur(b.time) + "</b></div>" +
+                    '<div class="route-card-sub">' + fmtDist(b.dist) + " до цели</div></div>";
           }
-          if (b.note) html += '<div class="route-note route-bd-note">' + escapeHtml(b.note) + "</div>";
         });
         html += "</div>";
         // Спешивание на «неизвестном» участке
@@ -1301,14 +1308,21 @@
           html += '<div class="route-dismount">';
           if (routeState.dismount) {
             var dm = routeState.dismount;
-            html += '<div class="route-bd-title">🥾 Спешивание:</div>';
-            html += '<div class="route-bd-variant">до точки (' + fmtDist(dm.distTo) + " по участку): " +
-                    VEHICLE_ORDER.map(function (veh) { return VEHICLE_ICONS[veh] + " " + fmtDur(dm.vehTimes[veh]); }).join(" / ") + "</div>";
-            var walkVal = fmtDist(dm.distRem) + " · " + fmtDur(dm.walkTime);
-            if (dm.ascentRem > 5) walkVal += ' <span class="route-note">↑' + Math.round(dm.ascentRem) + " м</span>";
-            html += '<div class="route-bd-variant">дальше пешком: 🚶 ' + walkVal + "</div>";
-            html += '<div class="route-bd-variant">всего до цели: ' +
-                    VEHICLE_ORDER.map(function (veh) { return VEHICLE_ICONS[veh] + "+🚶 <b>" + fmtDur(dm.vehTimes[veh] + dm.walkTime) + "</b>"; }).join(" / ") + "</div>";
+            html += '<div class="route-card route-card-dm">' +
+                    '<div class="route-card-head"><span class="route-chip" style="background:#f0883e"></span>' +
+                    '<span class="route-card-name">🥾 Спешивание</span>' +
+                    '<span class="route-card-dist">' + fmtDist(dm.distTo) + " по участку</span></div>";
+            VEHICLE_ORDER.forEach(function (veh) {
+              html += '<div class="route-kv"><span>' + VEHICLE_ICONS[veh] + " до точки на " +
+                      (veh === "Вахтовка" ? "вахтовке" : "вездеходе") + "</span><b>" + fmtDur(dm.vehTimes[veh]) + "</b></div>";
+            });
+            html += '<div class="route-kv route-kv-sep"><span>🚶 дальше пешком · ' + fmtDist(dm.distRem) +
+                    (dm.ascentRem > 5 ? " ↑" + Math.round(dm.ascentRem) + " м" : "") + "</span><b>" + fmtDur(dm.walkTime) + "</b></div>";
+            VEHICLE_ORDER.forEach(function (veh, i) {
+              html += '<div class="route-kv' + (i === 0 ? " route-kv-sep" : "") + '"><span>' + VEHICLE_ICONS[veh] +
+                      "+🚶 всего до цели</span><b>" + fmtDur(dm.vehTimes[veh] + dm.walkTime) + "</b></div>";
+            });
+            html += "</div>";
             html += '<button type="button" class="route-dismount-btn" data-act="dismount-clear">✖ Сбросить спешивание</button>';
           } else {
             html += '<button type="button" class="route-dismount-btn" data-act="dismount">🥾 Отметить спешивание</button>';

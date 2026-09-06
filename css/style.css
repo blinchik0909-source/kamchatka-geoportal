@@ -449,19 +449,32 @@ html, body {
 .route-origin { color: #475569; }
 .route-breakdown { margin: 8px 0 4px; }
 .route-bd-title { color: #64748b; font-size: 11.5px; margin-bottom: 4px; }
-.route-bd-item { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 4px 0; }
-.route-bd-phase { flex: 1; }
-.route-bd-val { color: #475569; white-space: nowrap; }
-.route-total {
-  margin: 4px 0 8px;
-  padding-top: 6px;
-  border-top: 1px solid #e2e8f0;
-  font-size: 12.5px;
+.route-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 7px 9px;
+  margin: 6px 0;
 }
-.route-total-line { margin-top: 3px; font-size: 12px; color: #334155; }
-.route-bd-note { margin: -2px 0 4px 26px; font-size: 11px; color: #64748b; }
-.route-bd-variant { margin: 2px 0 2px 26px; font-size: 11.5px; color: #334155; }
-.route-dismount { margin: 6px 0; padding-top: 6px; border-top: 1px dashed #e2e8f0; }
+.route-card-head { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; }
+.route-card-name { flex: 1; }
+.route-card-time { white-space: nowrap; }
+.route-card-dist { font-weight: 500; color: #64748b; font-size: 11.5px; white-space: nowrap; }
+.route-card-sub { margin: 3px 0 0 25px; font-size: 11.5px; color: #64748b; }
+.route-kv {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin: 4px 0 0 25px;
+  font-size: 12px;
+  color: #334155;
+}
+.route-kv b { white-space: nowrap; }
+.route-kv-sep { border-top: 1px dashed #e2e8f0; padding-top: 5px; margin-top: 6px; }
+.route-card-note { margin: 5px 0 0 25px; font-size: 11px; color: #94a3b8; }
+.route-card-dm { background: #fffbf5; border-color: #fde3c3; }
+.route-dismount { margin: 6px 0; }
 .route-dismount-btn {
   margin-top: 4px;
   padding: 5px 8px;
