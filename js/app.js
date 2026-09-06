@@ -1212,27 +1212,39 @@
   var DRIVE_MAX_TAN = 0.25;   // ~14° вдоль пути: круче машина не поднимется/не спустится
   var DRIVE_SLOPE_WIN = 300;  // м: окно оценки устойчивого уклона (не срезать короткие взлобки)
 
-  // Обрезает авто-плечо до реально проезжей части:
-  //  1) первый сегмент с непроезжим highway (тропа и т.п.);
-  //  2) первый участок с устойчивым уклоном > DRIVE_MAX_TAN (машина в вулкан не лезет).
-  // Остаток маршрута достроится обычным пешим финалом (finishWithCar).
+  // Обрезает ТОЛЬКО НЕПРОЕЗЖИЙ ХВОСТ авто-плеча (финальный забор на вулкан
+  // по тропе/крутому склону). НЕЛЬЗЯ резать на ПЕРВОМ плохом месте: крутая
+  // улица в начале (ПКЦ — город на сопках) обрезала плечо у старта, и пеший
+  // финал строился на сотни км (регресс 747 км «пешком» до Ушковского).
+  // Алгоритм: помечаем «плохие» точки (тропа в тегах или уклон > DRIVE_MAX_TAN),
+  // затем идём С КОНЦА назад и режем только хвостовой плохой участок;
+  // останавливаемся, когда набралось ≥400 м непрерывно хорошей дороги.
+  // Плохие участки в СЕРЕДИНЕ маршрута не трогаем (дальше есть дорога —
+  // значит место проезжаемо, просто крутое/шум высот).
   function trimDriveLeg(leg) {
     if (!leg || !leg.coords || leg.coords.length < 2) return leg;
-    var cutAt = Infinity;
-    // 1) тип пути из тегов BRouter
-    if (leg.messages && leg.messages.length > 1) {
-      var h = leg.messages[0];
-      var iT = h.indexOf("WayTags"), iD = h.indexOf("Distance");
-      var cum = 0;
-      for (var i = 1; i < leg.messages.length; i++) {
-        if (iT >= 0 && NON_DRIVABLE_RE.test(leg.messages[i][iT] || "")) { cutAt = cum; break; }
-        cum += parseFloat(leg.messages[i][iD]) || 0;
-      }
-    }
-    // 2) устойчивый уклон вдоль пути (по 3D-координатам BRouter, скользящее окно)
     var cs = leg.coords;
     var cd = [0];
     for (var k = 1; k < cs.length; k++) cd.push(cd[k - 1] + distM(cs[k - 1], cs[k]));
+    var total = cd[cd.length - 1];
+    var bad = new Uint8Array(cs.length);
+
+    // 1) непроезжие типы путей из тегов BRouter → пометка точек по дистанции
+    if (leg.messages && leg.messages.length > 1) {
+      var h = leg.messages[0];
+      var iT = h.indexOf("WayTags"), iD = h.indexOf("Distance");
+      var cum = 0, kp = 0;
+      for (var i = 1; i < leg.messages.length; i++) {
+        var d = parseFloat(leg.messages[i][iD]) || 0;
+        var isBad = iT >= 0 && NON_DRIVABLE_RE.test(leg.messages[i][iT] || "");
+        if (isBad) {
+          while (kp < cs.length && cd[kp] < cum - 1) kp++;
+          for (var kk = kp; kk < cs.length && cd[kk] <= cum + d + 1; kk++) bad[kk] = 1;
+        }
+        cum += d;
+      }
+    }
+    // 2) устойчивый уклон вдоль пути (скользящее окно по 3D-координатам)
     var i0 = 0;
     for (var j = 1; j < cs.length; j++) {
       while (cd[j] - cd[i0 + 1] >= DRIVE_SLOPE_WIN && i0 + 1 < j) i0++;
@@ -1241,11 +1253,25 @@
       var e0 = cs[i0][2], e1 = cs[j][2];
       if (typeof e0 !== "number" || typeof e1 !== "number") continue;
       if (Math.abs(e1 - e0) / span > DRIVE_MAX_TAN) {
-        cutAt = Math.min(cutAt, cd[i0]);
-        break;
+        for (var b2 = i0; b2 <= j; b2++) bad[b2] = 1;
       }
     }
-    if (cutAt === Infinity) return leg;
+
+    // Срезаем только хвост: с конца назад до 400 м непрерывно хорошей дороги
+    var cutIdx = cs.length - 1;
+    var goodRun = 0;
+    for (var q = cs.length - 1; q >= 0; q--) {
+      if (bad[q]) {
+        goodRun = 0;
+        cutIdx = q;
+      } else {
+        if (q < cs.length - 1) goodRun += cd[q + 1] - cd[q];
+        if (goodRun >= 400) break;
+      }
+    }
+    if (cutIdx >= cs.length - 1) return leg; // хвост проезжий — ничего не режем
+    var cutAt = cd[cutIdx];
+    if (cutAt >= total - 50) return leg;
     if (cutAt < 150) return null; // проезжей части фактически нет
     // Режем геометрию по дистанции cutAt
     var outC = [cs[0]];
@@ -1322,10 +1348,15 @@
     });
   }
 
-  // Авто-плечо готово: достраиваем финал до цели пешим профилем или прямой
+  // Авто-плечо готово: достраиваем финал до цели пешим профилем.
+  // ЗАЩИТА: пеший финал только если до цели ≤30 км по прямой (как и целиком
+  // пеший маршрут) — иначе при обрезанном/коротком авто-плече снова
+  // появятся пешие маршруты на сотни км (регресс с Ушковским: 747 км пешком).
   function finishWithCar(reqId, car, d) {
     var carEnd = car.coords[car.coords.length - 1];
-    if (distM(carEnd, d) < 80) { assemble(reqId, car, null, d); return; }
+    var rem = distM(carEnd, d);
+    if (rem < 80) { assemble(reqId, car, null, d); return; }
+    if (rem > 30000) { assemble(reqId, car, null, d); return; }
     brouter(carEnd, d, "foot").then(function (foot) {
       if (reqId !== routeReq) return;
       // Абсурдный пеший крюк (см. footSane) → маркер «конец вычисляемого маршрута»
