@@ -1030,14 +1030,6 @@
       if (!stats[ph]) stats[ph] = { dist: 0 };
       stats[ph].dist += s.dist;
     });
-    // Синтетическое плечо без сообщений BRouter (прямой «неизвестный» участок):
-    // считаем статистику по геометрии, иначе участок не попадёт в раскладку времени
-    if (!segs.length) {
-      var ph0 = segType === "foot" ? UNKNOWN_PHASE : "Просёлок";
-      var tot0 = 0;
-      for (var j = 1; j < coords.length; j++) tot0 += distM(coords[j - 1], coords[j]);
-      stats[ph0] = { dist: tot0 };
-    }
 
     var feats = [];
     var geomCum = 0, si = 0, curPh = null, curCoords = null;
@@ -1216,12 +1208,8 @@
       if (distM(o, d) <= 30000) {
         brouter(o, d, "foot").then(function (foot) {
           if (reqId !== routeReq) return;
-          if (foot && footSane(foot, o, d)) { assemble(reqId, null, foot, d); return; }
-          unknownSane(o, d).then(function (ok) {
-            if (reqId !== routeReq) return;
-            if (ok) assemble(reqId, null, { coords: [o, d], messages: [] }, d);
-            else straightFallback();
-          });
+          if (foot && footSane(foot, o, d)) assemble(reqId, null, foot, d);
+          else straightFallback();
         });
       } else {
         straightFallback();
@@ -1237,47 +1225,16 @@
     });
   }
 
-  // Авто-плечо готово: достраиваем финал до цели пешим профилем;
-  // если троп нет — прямым «неизвестным» участком, НО только после проверки
-  // unknownSane (отсеиваем «безумные» прямые: болота, скалы, вода, >30 км)
+  // Авто-плечо готово: достраиваем финал до цели пешим профилем или прямой
   function finishWithCar(reqId, car, d) {
     var carEnd = car.coords[car.coords.length - 1];
     if (distM(carEnd, d) < 80) { assemble(reqId, car, null, d); return; }
     brouter(carEnd, d, "foot").then(function (foot) {
       if (reqId !== routeReq) return;
-      // Абсурдный пеший крюк (см. footSane) отбрасываем
+      // Абсурдный пеший крюк (см. footSane) → маркер «конец вычисляемого маршрута»
       if (foot && !footSane(foot, carEnd, d)) foot = null;
-      if (foot) { assemble(reqId, car, foot, d); return; }
-      unknownSane(carEnd, d).then(function (ok) {
-        if (reqId !== routeReq) return;
-        // ok → прямой «неизвестный» участок; иначе — маркер конца маршрута
-        assemble(reqId, car, ok ? { coords: [carEnd, d], messages: [] } : null, d);
-      });
+      assemble(reqId, car, foot, d);
     });
-  }
-
-  // Можно ли достроить маршрут прямым «неизвестным» участком a→b.
-  // Отсеиваем только явно «безумные» варианты:
-  //  - длиннее 30 км по прямой;
-  //  - на пути болота/скалы/вода (natural=wetland|cliff|water в OSM у линии).
-  // Лес (natural=wood) НЕ блокирует: им покрыта почти вся низменная Камчатка,
-  // иначе достройка перестанет работать вообще (чего быть не должно).
-  // При недоступности Overpass НЕ блокируем достройку (возможность важнее).
-  function unknownSane(a, b) {
-    var rem = distM(a, b);
-    if (rem > 30000) return Promise.resolve(false);
-    var n = Math.max(2, Math.min(20, Math.ceil(rem / 2000)));
-    var pts = [];
-    for (var i = 0; i <= n; i++) {
-      var t = i / n;
-      pts.push((a[1] + (b[1] - a[1]) * t).toFixed(5) + "," + (a[0] + (b[0] - a[0]) * t).toFixed(5));
-    }
-    var q = '[out:json][timeout:12];nwr(around:200,' + pts.join(",") +
-            ')["natural"~"^(wetland|cliff|water)$"];out ids 1;';
-    return fetch(osmEndpoint, { method: "POST", body: "data=" + encodeURIComponent(q) })
-      .then(function (r) { return r.json(); })
-      .then(function (osm) { return !(osm.elements && osm.elements.length); })
-      .catch(function () { return true; });
   }
 
   // Проверка адекватности пешего плеча: не длиннее прямой более чем в 3 раза (+3 км допуск).
@@ -1313,8 +1270,9 @@
       footAscent = computeAscent(foot.coords);
       routeState.unknownCoords = foot.coords;
     } else if (car) {
-      // Ни троп, ни допустимой прямой достройки (см. unknownSane) —
-      // ставим маркер «конец вычисляемого маршрута» и сообщаем об остатке
+      // Пеший маршрут не построился, ближе дорог/троп нет — ПРЯМУЮ НЕ рисуем
+      // (идти по прямой через тайгу — безумие): ставим маркер
+      // «конец вычисляемого маршрута» и честно сообщаем об остатке
       var carEnd = car.coords[car.coords.length - 1];
       var rem = distM(carEnd, dest);
       if (rem >= 80) {
