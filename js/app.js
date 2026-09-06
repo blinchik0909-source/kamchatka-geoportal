@@ -829,19 +829,30 @@
     "Пешком": "#2e9e4f"
   };
   var PHASE_ORDER = ["Хорошая дорога", "Гравийная трасса", "Просёлок", "Пешком"];
-  // Реалистичные средние скорости по этапам (м/с), откалиброванные по отчётам туристов:
-  //  - ПКЦ→Козыревск: 470–500 км (300 асфальт + 170 гравийная трасса) реально едут 7–9 ч;
-  //  - Козыревск→«Клешня»: 70 км лесной дороги с бродами — 3–5 ч (вахтовки/подготовленные 4×4);
-  //  - пешие подходы — по пересечёнке, время дополнительно корректируется набором высоты
-  //    (восхождение на Толбачик: 12 км при наборе 1680 м занимает 5–6 ч — модель совпадает).
-  var PHASE_SPEED = {
-    "Хорошая дорога": 65 / 3.6,   // ~65 км/ч (асфальтовая трасса с посёлками и постами)
-    "Гравийная трасса": 45 / 3.6, // ~45 км/ч (отсыпанная гравийная трасса, напр. Мильково–Ключи)
-    "Просёлок": 15 / 3.6,         // ~15 км/ч (внедорожный трек, броды, вулканический шлак)
-    "Пешком": 4 / 3.6             // ~4 км/ч базово по ровному; набор высоты добавляется отдельно
+  // Время до цели считаем для двух типичных видов транспорта Камчатки:
+  //  - Вахтовка (КамАЗ/ГАЗ-66/Урал): быстрее на трассе, медленнее на внедорожных треках;
+  //  - Вездеход (гусеничный/ШЕРП/ТРЭКОЛ): медленнее по асфальту, увереннее на бездорожье.
+  // Скорости (м/с) по типу покрытия, откалиброваны по отчётам туристов:
+  //  - ПКЦ→Козыревск на вахтовке: 470–500 км (асфальт+гравий) — 7–9 ч;
+  //  - Козыревск→«Клешня» на вахтовке: 70 км лесной дороги с бродами — 3–5 ч;
+  //  - пеший финальный подход остаётся пешим (восхождение), время корректируется набором высоты.
+  var VEHICLE_ORDER = ["Вахтовка", "Вездеход"];
+  var VEHICLE_ICONS = { "Вахтовка": "🚛", "Вездеход": "🚜", "Пешком": "🚶" };
+  var VEHICLE_COLORS = { "Вахтовка": "#1a73e8", "Вездеход": "#8e24aa", "Пешком": "#2e9e4f" };
+  var VEHICLE_SPEED = {
+    "Вахтовка": {
+      "Хорошая дорога": 60 / 3.6,   // асфальтовая трасса с посёлками
+      "Гравийная трасса": 45 / 3.6, // отсыпка типа Мильково–Ключи
+      "Просёлок": 15 / 3.6          // внедорожный трек, броды, шлак
+    },
+    "Вездеход": {
+      "Хорошая дорога": 40 / 3.6,   // по асфальту вездеход медленнее вахтовки
+      "Гравийная трасса": 30 / 3.6,
+      "Просёлок": 12 / 3.6          // зато уверенно идёт там, где вахтовка буксует
+    }
   };
   var NAISMITH_SEC_PER_M = 6;   // правило Наисмита: +1 ч на каждые 600 м набора высоты
-  var FOOT_SPEED = PHASE_SPEED["Пешком"]; // для пешего остатка по прямой
+  var FOOT_SPEED = 4 / 3.6;     // ~4 км/ч по ровному; набор высоты добавляется отдельно
   var routeReq = 0;      // счётчик запросов (игнор устаревших ответов)
 
   function surfaceFromTags(tags) {
@@ -973,9 +984,10 @@
     return segs;
   }
 
-  // Оценка времени (сек) по расстоянию (м) и фазе — реалистичные средние скорости
-  function phaseTime(distMeters, phase) {
-    var v = PHASE_SPEED[phase] || PHASE_SPEED["Просёлок"];
+  // Время (сек) для конкретного транспорта по расстоянию (м) и типу покрытия
+  function vehicleTime(distMeters, phase, vehicle) {
+    var tab = VEHICLE_SPEED[vehicle];
+    var v = tab[phase] || tab["Просёлок"];
     return distMeters / v;
   }
 
@@ -989,7 +1001,7 @@
     return up;
   }
 
-  // Строит геометрию по фазам + статистику {phase:{dist,time}} для одного «плеча»
+  // Строит геометрию по фазам + статистику {phase:{dist}} для одного «плеча»
   function buildLeg(coords, messages, classifyFn, segType) {
     var segs = parseSegs(messages);
     var stats = {};
@@ -997,9 +1009,8 @@
     segs.forEach(function (s) {
       cum += s.dist; ends.push(cum);
       var ph = classifyFn(s.surf);
-      if (!stats[ph]) stats[ph] = { dist: 0, time: 0 };
+      if (!stats[ph]) stats[ph] = { dist: 0 };
       stats[ph].dist += s.dist;
-      stats[ph].time += phaseTime(s.dist, ph);
     });
 
     var feats = [];
@@ -1023,9 +1034,8 @@
 
   function mergeStats(dst, src) {
     Object.keys(src).forEach(function (p) {
-      if (!dst[p]) dst[p] = { dist: 0, time: 0 };
+      if (!dst[p]) dst[p] = { dist: 0 };
       dst[p].dist += src[p].dist;
-      dst[p].time += src[p].time;
     });
   }
 
@@ -1108,30 +1118,49 @@
       allCoords = allCoords.concat(foot.coords);
       // Поправка на набор высоты (правило Наисмита) — восхождения к вулканам медленные
       footAscent = computeAscent(foot.coords);
-      if (stats["Пешком"]) stats["Пешком"].time += footAscent * NAISMITH_SEC_PER_M;
     } else if (car) {
       // Пеший маршрут не построился — дотягиваем прямой пеший остаток до цели
       var carEnd = car.coords[car.coords.length - 1];
       var rem = distM(carEnd, dest);
       if (rem >= 80) {
         features.push({ type: "Feature", properties: { kind: "seg", segType: "foot", phase: "Пешком" }, geometry: { type: "LineString", coordinates: [carEnd, dest] } });
-        if (!stats["Пешком"]) stats["Пешком"] = { dist: 0, time: 0 };
+        if (!stats["Пешком"]) stats["Пешком"] = { dist: 0 };
         stats["Пешком"].dist += rem;
-        stats["Пешком"].time += rem / FOOT_SPEED;
         allCoords.push(dest);
       }
     }
 
     setRouteFeatures(features);
-    var breakdown = PHASE_ORDER.filter(function (p) { return stats[p]; })
-      .map(function (p) {
-        var item = { phase: p, dist: stats[p].dist, time: stats[p].time };
-        if (p === "Пешком" && footAscent > 5) item.ascent = footAscent;
-        return item;
+    // Раскладка: проезжая часть — время на вахтовке и на вездеходе; пеший финал — отдельно
+    var drivePhases = PHASE_ORDER.filter(function (p) { return p !== "Пешком" && stats[p]; });
+    var driveDist = drivePhases.reduce(function (a, p) { return a + stats[p].dist; }, 0);
+    var breakdown = [];
+    if (driveDist > 0) {
+      VEHICLE_ORDER.forEach(function (veh) {
+        var t = drivePhases.reduce(function (a, p) { return a + vehicleTime(stats[p].dist, p, veh); }, 0);
+        breakdown.push({ phase: veh, dist: driveDist, time: t, kind: "drive" });
       });
-    var totDist = breakdown.reduce(function (a, x) { return a + x.dist; }, 0);
-    var totTime = breakdown.reduce(function (a, x) { return a + x.time; }, 0);
-    var res = { straight: false, breakdown: breakdown, totDist: totDist, totTime: totTime };
+    }
+    var footTime = 0, footDist = 0;
+    if (stats["Пешком"]) {
+      footDist = stats["Пешком"].dist;
+      footTime = footDist / FOOT_SPEED + footAscent * NAISMITH_SEC_PER_M;
+      var footItem = { phase: "Пешком", dist: footDist, time: footTime, kind: "foot" };
+      if (footAscent > 5) footItem.ascent = footAscent;
+      breakdown.push(footItem);
+    }
+    var totDist = driveDist + footDist;
+    var totals = [];
+    if (driveDist > 0) {
+      VEHICLE_ORDER.forEach(function (veh) {
+        var driveT = 0;
+        breakdown.forEach(function (b) { if (b.phase === veh) driveT = b.time; });
+        totals.push({ label: veh === "Вездеход" ? "на вездеходе" : "на вахтовке", icon: VEHICLE_ICONS[veh], time: driveT + footTime });
+      });
+    } else if (footDist > 0) {
+      totals.push({ label: "пешком", icon: VEHICLE_ICONS["Пешком"], time: footTime });
+    }
+    var res = { straight: false, breakdown: breakdown, totDist: totDist, totals: totals };
     routeState.lastResult = res;
     renderRoutePanel(null, res);
     if (allCoords.length) fitRoute(allCoords);
@@ -1174,19 +1203,22 @@
         html += '<div class="route-result">Расстояние: <b>' + fmtDist(result.totDist) +
                 '</b> <span class="route-note">(по прямой — маршрут не найден)</span></div>';
       } else if (result.breakdown && result.breakdown.length) {
-        html += '<div class="route-breakdown"><div class="route-bd-title">Этапы маршрута:</div>';
+        html += '<div class="route-breakdown"><div class="route-bd-title">Время в пути:</div>';
         result.breakdown.forEach(function (b) {
-          var icon = b.phase === "Пешком" ? "🚶" : "🚗";
+          var icon = VEHICLE_ICONS[b.phase] || "🚗";
           var val = fmtDist(b.dist) + " · " + fmtDur(b.time);
           if (b.ascent) val += ' <span class="route-note">↑' + Math.round(b.ascent) + " м</span>";
           html += '<div class="route-bd-item">' +
-                  '<span class="route-chip" style="background:' + (PHASE_COLORS[b.phase] || "#8894a3") + '"></span>' +
+                  '<span class="route-chip" style="background:' + (VEHICLE_COLORS[b.phase] || "#8894a3") + '"></span>' +
                   '<span class="route-bd-phase">' + icon + " " + escapeHtml(b.phase) + "</span>" +
                   '<span class="route-bd-val">' + val + "</span></div>";
         });
         html += "</div>";
-        html += '<div class="route-total">Итого: <b>' + fmtDist(result.totDist) +
-                "</b> · <b>" + fmtDur(result.totTime) + "</b></div>";
+        html += '<div class="route-total">Итого: <b>' + fmtDist(result.totDist) + "</b>";
+        (result.totals || []).forEach(function (t) {
+          html += '<div class="route-total-line">' + t.icon + " " + escapeHtml(t.label) + ": <b>" + fmtDur(t.time) + "</b></div>";
+        });
+        html += "</div>";
       }
     }
     html += '<button type="button" class="route-clear">Очистить маршрут</button>';
