@@ -518,6 +518,18 @@ html, body {
   font-size: 12px;
   color: #b91c1c;
 }
+.route-offroad-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px;
+  border: 1px solid #c9b3e0;
+  border-radius: 6px;
+  background: #f5eefb;
+  color: #6b21a8;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+.route-offroad-btn:hover { background: #ede3f7; }
 .route-clear {
   width: 100%;
   margin-top: 4px;

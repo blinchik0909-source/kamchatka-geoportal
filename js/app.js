@@ -821,7 +821,9 @@
   var routeState = {
     origin: null, originLabel: "", dest: null, destName: "", pickMode: false, mode: "car", lastResult: null,
     // Спешивание на «неизвестном» участке: геометрия участка, время езды по дорогам, точка спешивания
-    unknownCoords: null, driveTimes: null, dismount: null, pickDismount: false, lastFeatures: []
+    unknownCoords: null, driveTimes: null, dismount: null, pickDismount: false, lastFeatures: [],
+    // Внедорожный трек: результат, текст ошибки, точка «конца вычисляемого маршрута»
+    offroad: null, offroadError: null, cutoffPoint: null
   };
   var routePanel = null;
 
@@ -873,6 +875,17 @@
   }
   var routeReq = 0;      // счётчик запросов (игнор устаревших ответов)
 
+  // ——— Внедорожный трек (отдельная экспериментальная функция) ———
+  // A* по сетке рельефа (DEM-тайлы Terrarium) с обходом препятствий OSM
+  var OFFROAD_COLOR = "#8e44ad";
+  var OFFROAD_MAX_STRAIGHT = 40000; // м: лимит длины по прямой для расчёта
+  // Предельный уклон (тангенс): вахтовка ~15°, вездеход ~25°
+  var OFFROAD_TAN_LIMIT = {
+    "Вахтовка": Math.tan(15 * Math.PI / 180),
+    "Вездеход": Math.tan(25 * Math.PI / 180)
+  };
+  var DEM_TILE_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/"; // + z/x/y.png, без ключа
+
   function surfaceFromTags(tags) {
     tags = tags || "";
     var sm = /surface=([^\s]+)/.exec(tags);
@@ -912,6 +925,13 @@
       filter: ["all", ["==", ["get", "kind"], "seg"], ["==", ["get", "segType"], "foot"]],
       layout: { "line-join": "round", "line-cap": "round" },
       paint: { "line-color": PHASE_COLORS[UNKNOWN_PHASE], "line-width": 4, "line-dasharray": [1.5, 1.2] }
+    });
+    // Внедорожный трек (отдельная функция): фиолетовый пунктир
+    map.addLayer({
+      id: "route-offroad", type: "line", source: "route",
+      filter: ["==", ["get", "kind"], "offroad"],
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": OFFROAD_COLOR, "line-width": 4, "line-dasharray": [2, 1.5] }
     });
     map.addLayer({
       id: "route-straight", type: "line", source: "route",
@@ -1143,6 +1163,9 @@
     var o = routeState.origin, d = routeState.dest;
     routeState.unknownCoords = null;
     routeState.driveTimes = null;
+    routeState.offroad = null;
+    routeState.offroadError = null;
+    routeState.cutoffPoint = null;
     clearDismount(false);
     renderRoutePanel("Прокладываю маршрут…");
     driveTo(o, d).then(function (car) {
@@ -1248,6 +1271,330 @@
     return len <= Math.max(straight * 3, straight + 3000);
   }
 
+  // ============================================================
+  //  ВНЕДОРОЖНЫЙ ТРЕК (отдельная функция, запускается кнопкой)
+  //  Строит чёткий маршрут по бездорожью для вахтовки/вездехода:
+  //  A* по сетке высот (DEM-тайлы Terrarium, ~40–90 м/ячейка) с учётом
+  //  уклона склона и обходом препятствий из OSM (вода, болота, обрывы).
+  // ============================================================
+
+  // Запуск: от точки «конца вычисляемого маршрута» до цели
+  function runOffroad() {
+    var a = routeState.cutoffPoint, d = routeState.dest;
+    if (!a || !d) return;
+    if (distM(a, d) > OFFROAD_MAX_STRAIGHT) {
+      routeState.offroadError = "Слишком далеко для внедорожного расчёта (лимит " + fmtDist(OFFROAD_MAX_STRAIGHT) + " по прямой).";
+      renderRoutePanel();
+      return;
+    }
+    var guard = routeReq; // новый маршрут/очистка отменяет расчёт
+    routeState.offroadError = null;
+    renderRoutePanel("Строю внедорожный трек: рельеф + препятствия OSM (до ~20 сек)…");
+    computeOffroadTrack(a, d).then(function (res) {
+      if (guard !== routeReq) return;
+      if (!res) {
+        routeState.offroadError = "Трек не построился: путь перекрыт водой/болотами/крутыми склонами либо рельеф недоступен.";
+        renderRoutePanel();
+        return;
+      }
+      routeState.offroad = res;
+      setRouteFeatures(routeState.lastFeatures.concat([{
+        type: "Feature", properties: { kind: "offroad" },
+        geometry: { type: "LineString", coordinates: res.coords }
+      }]));
+      renderRoutePanel();
+      fitRoute(res.coords);
+    }).catch(function () {
+      if (guard !== routeReq) return;
+      routeState.offroadError = "Ошибка при построении внедорожного трека (сеть/данные).";
+      renderRoutePanel();
+    });
+  }
+
+  function clearOffroad() {
+    routeState.offroad = null;
+    routeState.offroadError = null;
+    setRouteFeatures(routeState.lastFeatures.filter(function (f) {
+      return !(f.properties && f.properties.kind === "offroad");
+    }));
+    renderRoutePanel();
+  }
+
+  function computeOffroadTrack(a, b) {
+    var pad = Math.max(2000, distM(a, b) * 0.3);
+    var bbox = padBbox(a, b, pad); // [w, s, e, n]
+    return Promise.all([loadDemGrid(bbox), loadObstacles(bbox)]).then(function (rr) {
+      var grid = rr[0];
+      if (!grid) return null;
+      rasterizeObstacles(rr[1], grid);
+      var s = gridCellOf(grid, a), g = gridCellOf(grid, b);
+      unblockAround(grid, s); // старт/цель могут попасть в «препятствие» (берег и т.п.)
+      unblockAround(grid, g);
+      // Трек строим по возможностям вездехода (максимально проходимый транспорт)
+      var path = astarGrid(grid, s, g, OFFROAD_TAN_LIMIT["Вездеход"]);
+      if (!path || path.length < 2) return null;
+
+      // Статистика по «сырому» пути: дистанция, набор, макс. уклон, время по транспорту
+      var elev = grid.elev, W = grid.w, cm = grid.cellM;
+      var dist = 0, ascent = 0, maxTan = 0;
+      var times = {}, blockedVeh = {};
+      VEHICLE_ORDER.forEach(function (v) { times[v] = 0; blockedVeh[v] = false; });
+      for (var i = 1; i < path.length; i++) {
+        var p0 = path[i - 1], p1 = path[i];
+        var diag = (p0 % W !== p1 % W) && (((p0 / W) | 0) !== ((p1 / W) | 0));
+        var dd = diag ? cm * 1.41421356 : cm;
+        var dz = elev[p1] - elev[p0];
+        if (dz > 0) ascent += dz;
+        var tan = Math.abs(dz) / dd;
+        if (tan > maxTan) maxTan = tan;
+        dist += dd;
+        VEHICLE_ORDER.forEach(function (v) {
+          var lim = OFFROAD_TAN_LIMIT[v];
+          if (tan > lim) { blockedVeh[v] = true; return; }
+          // На уклоне скорость падает: на предельном уклоне остаётся ~35%
+          var eff = VEHICLE_SPEED[v][UNKNOWN_PHASE] * (1 - 0.65 * Math.min(tan / lim, 1));
+          times[v] += dd / eff;
+        });
+      }
+      VEHICLE_ORDER.forEach(function (v) { if (blockedVeh[v]) times[v] = null; });
+
+      // Геометрия: индексы → lon/lat, упрощение для отрисовки, точные концы
+      var coords = path.map(function (idx) { return gridLonLat(grid, idx % W, (idx / W) | 0); });
+      coords[0] = a.slice(0, 2);
+      coords[coords.length - 1] = b.slice(0, 2);
+      if (coords.length > 3) {
+        try {
+          coords = turf.simplify(turf.lineString(coords), { tolerance: 0.0004, highQuality: true }).geometry.coordinates;
+        } catch (e) { /* оставляем как есть */ }
+      }
+      return { coords: coords, dist: dist, ascent: ascent, maxTan: maxTan, times: times, footTime: footTime(dist, ascent) };
+    });
+  }
+
+  // ——— Сетка высот из DEM-тайлов Terrarium (AWS, без ключа, CORS открыт) ———
+  function lon2tx(lon, z) { return (lon + 180) / 360 * Math.pow(2, z); }
+  function lat2ty(lat, z) {
+    var r = lat * Math.PI / 180;
+    return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z);
+  }
+  function tx2lon(x, z) { return x / Math.pow(2, z) * 360 - 180; }
+  function ty2lat(y, z) {
+    var n = Math.PI - 2 * Math.PI * y / Math.pow(2, z);
+    return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  }
+  function padBbox(a, b, padM) {
+    var midLat = (a[1] + b[1]) / 2;
+    var dLat = padM / 111320;
+    var dLon = padM / (111320 * Math.cos(midLat * Math.PI / 180));
+    return [Math.min(a[0], b[0]) - dLon, Math.min(a[1], b[1]) - dLat,
+            Math.max(a[0], b[0]) + dLon, Math.max(a[1], b[1]) + dLat];
+  }
+  function loadImg(url) {
+    return new Promise(function (resolve, reject) {
+      var im = new Image();
+      im.crossOrigin = "anonymous";
+      im.onload = function () { resolve(im); };
+      im.onerror = reject;
+      im.src = url;
+    });
+  }
+  function loadDemGrid(bbox) {
+    var w = bbox[0], s = bbox[1], e = bbox[2], n = bbox[3];
+    // Зум подбираем так, чтобы хватило ≤12 тайлов (256×256)
+    var z, tx0, tx1, ty0, ty1;
+    for (z = 11; z >= 8; z--) {
+      tx0 = Math.floor(lon2tx(w, z)); tx1 = Math.floor(lon2tx(e, z));
+      ty0 = Math.floor(lat2ty(n, z)); ty1 = Math.floor(lat2ty(s, z));
+      if ((tx1 - tx0 + 1) * (ty1 - ty0 + 1) <= 12) break;
+    }
+    var nx = tx1 - tx0 + 1, ny = ty1 - ty0 + 1;
+    var cv = document.createElement("canvas");
+    cv.width = nx * 256; cv.height = ny * 256;
+    var ctx = cv.getContext("2d");
+    var loads = [], fails = 0;
+    for (var x = tx0; x <= tx1; x++) {
+      for (var y = ty0; y <= ty1; y++) {
+        (function (x, y) {
+          loads.push(loadImg(DEM_TILE_URL + z + "/" + x + "/" + y + ".png")
+            .then(function (im) { ctx.drawImage(im, (x - tx0) * 256, (y - ty0) * 256); })
+            .catch(function () { fails++; }));
+        })(x, y);
+      }
+    }
+    return Promise.all(loads).then(function () {
+      if (fails > loads.length / 2) return null; // рельеф недоступен
+      var px0 = lon2tx(w, z) * 256 - tx0 * 256, px1 = lon2tx(e, z) * 256 - tx0 * 256;
+      var py0 = lat2ty(n, z) * 256 - ty0 * 256, py1 = lat2ty(s, z) * 256 - ty0 * 256;
+      var step = Math.max(1, Math.ceil(Math.max(px1 - px0, py1 - py0) / 400));
+      var gw = Math.max(2, Math.floor((px1 - px0) / step));
+      var gh = Math.max(2, Math.floor((py1 - py0) / step));
+      var img = ctx.getImageData(0, 0, cv.width, cv.height).data;
+      var elev = new Float32Array(gw * gh);
+      for (var j = 0; j < gh; j++) {
+        for (var i = 0; i < gw; i++) {
+          var px = Math.min(cv.width - 1, Math.round(px0 + i * step));
+          var py = Math.min(cv.height - 1, Math.round(py0 + j * step));
+          var o = (py * cv.width + px) * 4;
+          // Terrarium: elev = (R*256 + G + B/256) − 32768
+          elev[j * gw + i] = img[o] * 256 + img[o + 1] + img[o + 2] / 256 - 32768;
+        }
+      }
+      var midLat = (s + n) / 2;
+      var cellM = 40075016.686 * Math.cos(midLat * Math.PI / 180) / (256 * Math.pow(2, z)) * step;
+      return { z: z, tx0: tx0, ty0: ty0, px0: px0, py0: py0, step: step,
+               w: gw, h: gh, elev: elev, cellM: cellM, blocked: new Uint8Array(gw * gh) };
+    });
+  }
+  function gridCellOf(grid, ll) {
+    var gx = Math.round((lon2tx(ll[0], grid.z) * 256 - grid.tx0 * 256 - grid.px0) / grid.step);
+    var gy = Math.round((lat2ty(ll[1], grid.z) * 256 - grid.ty0 * 256 - grid.py0) / grid.step);
+    return [Math.max(0, Math.min(grid.w - 1, gx)), Math.max(0, Math.min(grid.h - 1, gy))];
+  }
+  function gridXY(grid, ll) { // дробные координаты ячейки (для растеризации)
+    return [(lon2tx(ll[0], grid.z) * 256 - grid.tx0 * 256 - grid.px0) / grid.step,
+            (lat2ty(ll[1], grid.z) * 256 - grid.ty0 * 256 - grid.py0) / grid.step];
+  }
+  function gridLonLat(grid, i, j) {
+    return [tx2lon((grid.tx0 * 256 + grid.px0 + i * grid.step) / 256, grid.z),
+            ty2lat((grid.ty0 * 256 + grid.py0 + j * grid.step) / 256, grid.z)];
+  }
+  function unblockAround(grid, cell) {
+    for (var dj = -2; dj <= 2; dj++) {
+      for (var di = -2; di <= 2; di++) {
+        var i = cell[0] + di, j = cell[1] + dj;
+        if (i >= 0 && i < grid.w && j >= 0 && j < grid.h) grid.blocked[j * grid.w + i] = 0;
+      }
+    }
+  }
+
+  // ——— Препятствия из OSM: вода/болота (полигоны), обрывы (линии) ———
+  function loadObstacles(bbox) {
+    var bb = bbox[1] + "," + bbox[0] + "," + bbox[3] + "," + bbox[2];
+    var q = '[out:json][timeout:20];(' +
+            'way["natural"~"^(water|wetland)$"](' + bb + ');' +
+            'relation["natural"~"^(water|wetland)$"](' + bb + ');' +
+            'way["natural"="cliff"](' + bb + ');' +
+            ');out geom;';
+    return fetch(osmEndpoint, { method: "POST", body: "data=" + encodeURIComponent(q) })
+      .then(function (r) { return r.json(); })
+      .then(function (osm) { return osmtogeojson(osm); })
+      .catch(function () { return null; }); // без препятствий считаем по одному рельефу
+  }
+  // Растеризуем препятствия на канве размером с сетку → маска blocked
+  function rasterizeObstacles(gj, grid) {
+    if (!gj || !gj.features || !gj.features.length) return;
+    var cv = document.createElement("canvas");
+    cv.width = grid.w; cv.height = grid.h;
+    var ctx = cv.getContext("2d");
+    ctx.fillStyle = "#000"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+    function ringPath(ring) {
+      for (var i = 0; i < ring.length; i++) {
+        var p = gridXY(grid, ring[i]);
+        if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+      }
+      ctx.closePath();
+    }
+    gj.features.forEach(function (f) {
+      var g = f.geometry;
+      if (!g) return;
+      if (g.type === "Polygon") {
+        ctx.beginPath(); g.coordinates.forEach(ringPath); ctx.fill("evenodd");
+      } else if (g.type === "MultiPolygon") {
+        ctx.beginPath();
+        g.coordinates.forEach(function (poly) { poly.forEach(ringPath); });
+        ctx.fill("evenodd");
+      } else if (g.type === "LineString" || g.type === "MultiLineString") {
+        var lines = g.type === "LineString" ? [g.coordinates] : g.coordinates;
+        ctx.beginPath();
+        lines.forEach(function (ln) {
+          for (var i = 0; i < ln.length; i++) {
+            var p = gridXY(grid, ln[i]);
+            if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+          }
+        });
+        ctx.stroke();
+      }
+    });
+    var d = ctx.getImageData(0, 0, grid.w, grid.h).data;
+    for (var k = 0; k < grid.w * grid.h; k++) {
+      if (d[k * 4 + 3] > 0) grid.blocked[k] = 1;
+    }
+  }
+
+  // ——— A* по сетке: стоимость = дистанция × штраф за уклон ———
+  function OffHeap() { this.a = []; }
+  OffHeap.prototype.push = function (f, i) {
+    var a = this.a; a.push([f, i]);
+    var c = a.length - 1;
+    while (c > 0) {
+      var p = (c - 1) >> 1;
+      if (a[p][0] <= a[c][0]) break;
+      var t = a[p]; a[p] = a[c]; a[c] = t; c = p;
+    }
+  };
+  OffHeap.prototype.pop = function () {
+    var a = this.a, top = a[0], last = a.pop();
+    if (a.length) {
+      a[0] = last;
+      var c = 0;
+      for (;;) {
+        var l = c * 2 + 1, r = l + 1, m = c;
+        if (l < a.length && a[l][0] < a[m][0]) m = l;
+        if (r < a.length && a[r][0] < a[m][0]) m = r;
+        if (m === c) break;
+        var t = a[m]; a[m] = a[c]; a[c] = t; c = m;
+      }
+    }
+    return top;
+  };
+  function astarGrid(grid, s, g, maxTan) {
+    var W = grid.w, H = grid.h, N = W * H;
+    var elev = grid.elev, blocked = grid.blocked, cm = grid.cellM;
+    var gScore = new Float64Array(N); gScore.fill(Infinity);
+    var came = new Int32Array(N); came.fill(-1);
+    var closed = new Uint8Array(N);
+    var si = s[1] * W + s[0], gi = g[1] * W + g[0];
+    var gx = g[0], gy = g[1];
+    function heur(idx) {
+      var dx = (idx % W) - gx, dy = ((idx / W) | 0) - gy;
+      return Math.sqrt(dx * dx + dy * dy) * cm;
+    }
+    var heap = new OffHeap();
+    gScore[si] = 0;
+    heap.push(heur(si), si);
+    var DX = [1, -1, 0, 0, 1, 1, -1, -1], DY = [0, 0, 1, -1, 1, -1, 1, -1];
+    var iter = 0, found = false;
+    while (heap.a.length) {
+      if (++iter > 600000) return null; // защита от зависания
+      var cur = heap.pop()[1];
+      if (closed[cur]) continue;
+      closed[cur] = 1;
+      if (cur === gi) { found = true; break; }
+      var cx = cur % W, cy = (cur / W) | 0;
+      for (var k = 0; k < 8; k++) {
+        var nx2 = cx + DX[k], ny2 = cy + DY[k];
+        if (nx2 < 0 || nx2 >= W || ny2 < 0 || ny2 >= H) continue;
+        var ni = ny2 * W + nx2;
+        if (closed[ni] || blocked[ni]) continue;
+        var dd = k < 4 ? cm : cm * 1.41421356;
+        var tan = Math.abs(elev[ni] - elev[cur]) / dd;
+        if (tan > maxTan) continue; // склон непроходим
+        var rel = tan / maxTan;
+        var ng = gScore[cur] + dd * (1 + 3 * rel * rel); // крутое — сильно дороже
+        if (ng < gScore[ni]) {
+          gScore[ni] = ng;
+          came[ni] = cur;
+          heap.push(ng + heur(ni), ni);
+        }
+      }
+    }
+    if (!found) return null;
+    var path = [gi];
+    var c = gi;
+    while (came[c] >= 0) { c = came[c]; path.push(c); }
+    return path.reverse();
+  }
+
   function assemble(reqId, car, foot, dest) {
     if (reqId !== routeReq) return;
     var features = [], stats = {};
@@ -1278,6 +1625,7 @@
       if (rem >= 80) {
         features.push({ type: "Feature", properties: { role: "route-end" }, geometry: { type: "Point", coordinates: carEnd } });
         cutoffRem = rem;
+        routeState.cutoffPoint = carEnd; // старт для внедорожного трека
       }
     }
 
@@ -1332,6 +1680,9 @@
     routeState.lastResult = null;
     routeState.unknownCoords = null;
     routeState.driveTimes = null;
+    routeState.offroad = null;
+    routeState.offroadError = null;
+    routeState.cutoffPoint = null;
     routeState.lastFeatures = [];
     clearDismount(false);
     if (map.getSource("route")) map.getSource("route").setData(EMPTY_FC);
@@ -1415,9 +1766,34 @@
           html += "</div>";
         }
         if (result.cutoff) {
-          html += '<div class="route-cutoff">⛔ <b>Конец вычисляемого маршрута</b> (серая точка): ' +
-                  'дальше дорог и троп в OSM нет — сайт помочь не может. ' +
-                  'До цели остаётся ещё <b>' + fmtDist(result.cutoff) + '</b> по прямой.</div>';
+          if (routeState.offroad) {
+            // Карточка построенного внедорожного трека (отдельная функция)
+            var off = routeState.offroad;
+            html += '<div class="route-card">' +
+                    '<div class="route-card-head"><span class="route-chip" style="background:' + OFFROAD_COLOR + '"></span>' +
+                    '<span class="route-card-name">🚜 Внедорожный трек</span>' +
+                    '<span class="route-card-dist">' + fmtDist(off.dist) +
+                    (off.ascent > 5 ? " · ↑" + Math.round(off.ascent) + " м" : "") + "</span></div>";
+            html += '<div class="route-kv"><span>макс. уклон на треке</span><b>' +
+                    Math.round(Math.atan(off.maxTan) * 180 / Math.PI) + "°</b></div>";
+            VEHICLE_ORDER.forEach(function (veh) {
+              var t = off.times[veh];
+              html += '<div class="route-kv"><span>' + VEHICLE_ICONS[veh] + " " + veh.toLowerCase() + "</span><b>" +
+                      (t == null ? "не пройдёт (уклон)" : fmtDur(t)) + "</b></div>";
+            });
+            html += '<div class="route-kv"><span>🚶 пешком</span><b>' + fmtDur(off.footTime) + "</b></div>";
+            html += '<div class="route-card-note">эксперимент: расчёт по рельефу (DEM) с обходом воды, ' +
+                    'болот и обрывов из OSM — проходимость не гарантирована</div></div>';
+            html += '<button type="button" class="route-offroad-btn" data-act="offroad-clear">✖ Убрать внедорожный трек</button>';
+          } else {
+            html += '<div class="route-cutoff">⛔ <b>Конец вычисляемого маршрута</b> (серая точка): ' +
+                    'дальше дорог и троп в OSM нет. ' +
+                    'До цели остаётся ещё <b>' + fmtDist(result.cutoff) + '</b> по прямой.</div>';
+            if (routeState.offroadError) {
+              html += '<div class="route-card-note">' + escapeHtml(routeState.offroadError) + "</div>";
+            }
+            html += '<button type="button" class="route-offroad-btn" data-act="offroad">🚜 Проложить внедорожный трек (эксперимент)</button>';
+          }
         }
       }
     }
@@ -1448,6 +1824,13 @@
         } else if (act === "dismount-clear") {
           clearDismount(true);
         }
+      };
+    });
+    routePanel.querySelectorAll(".route-offroad-btn").forEach(function (b) {
+      b.onclick = function () {
+        var act = b.getAttribute("data-act");
+        if (act === "offroad") runOffroad();
+        else if (act === "offroad-clear") clearOffroad();
       };
     });
   }
