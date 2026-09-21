@@ -954,7 +954,8 @@
       new maplibregl.Popup({ offset: 10 })
         .setLngLat(e.features[0].geometry.coordinates.slice(0, 2))
         .setHTML("<b>" + p.icon + " " + escapeHtml(p.name || p.label) + "</b><br>" + escapeHtml(p.label) +
-                 "<br>" + fmtDist(p.along) + " от старта · " + fmtDist(p.off) + " от маршрута")
+                 "<br>ехать от старта: " + (p.along < 1000 ? "у старта" : fmtDist(p.along)) +
+                 "<br>в стороне от маршрута: " + fmtDist(p.off))
         .addTo(map);
     });
     map.on("mouseenter", "route-lodging-pt", function () { map.getCanvas().style.cursor = "pointer"; });
@@ -2084,13 +2085,16 @@
           if (!lodColl) {
             routeState.lodging.slice(0, 12).forEach(function (it, i) {
               var tp = LODGING_TYPES[it.type];
+              // Цифра справа — сколько ПРОЕХАТЬ от старта до этого места по маршруту;
+              // места в пределах 1 км от начала подписываем «у старта», а не «0 м»
+              var mark = it.alongM < 1000 ? "у старта" : fmtDist(it.alongM) + " пути";
               html += '<div class="route-kv route-lodging-item" data-idx="' + i + '" title="Показать на карте"><span>' +
-                      tp[0] + " " + escapeHtml(it.name || tp[1]) + "</span><b>" + fmtDist(it.alongM) + "</b></div>";
+                      tp[0] + " " + escapeHtml(it.name || tp[1]) + "</span><b>" + mark + "</b></div>";
             });
             if (routeState.lodging.length > 12) {
               html += '<div class="route-card-note">и ещё ' + (routeState.lodging.length - 12) + ' — все показаны точками на карте</div>';
             }
-            html += '<div class="route-card-note">км — от старта по маршруту; данные OSM — наличие мест не гарантировано</div>';
+            html += '<div class="route-card-note">цифра — сколько проехать от старта до места; данные OSM — наличие мест не гарантировано</div>';
           }
           html += '</div>';
           if (!lodColl) {

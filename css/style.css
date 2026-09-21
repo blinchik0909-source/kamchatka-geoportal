@@ -292,6 +292,16 @@ html, body {
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  background: #ffffff;
+  color: #1f2430; /* тёмный текст: попапы без своих стилей были светлым по светлому */
+}
+/* Небольшие служебные попапы (ночёвки и т.п.) — с внутренними отступами */
+.maplibregl-popup-content { line-height: 1.45; }
+.maplibregl-popup:not(.feature-popup-wrap) .maplibregl-popup-content:not(:has(.feature-popup)) {
+  padding: 8px 26px 8px 10px;
+  width: auto;
+  max-width: 260px;
+  font-size: 12.5px;
 }
 .maplibregl-popup-close-button {
   width: 22px;
