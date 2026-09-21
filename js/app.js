@@ -825,7 +825,8 @@
     // Внедорожный трек: результат, текст ошибки, точка «конца вычисляемого маршрута»
     offroad: null, offroadError: null, cutoffPoint: null,
     // Места ночёвки вдоль маршрута (туристический атрибут): список/ошибка/загрузка/свёрнутость
-    lodging: null, lodgingError: null, lodgingLoading: false, lodgingCollapsed: false
+    // + полигоны населённых пунктов (потенциальные места ночлега)
+    lodging: null, lodgingError: null, lodgingLoading: false, lodgingCollapsed: false, lodgingPolys: null
   };
   var routePanel = null;
 
@@ -942,6 +943,23 @@
     });
     // Места ночёвки вдоль маршрута (кемпинги/приюты/гостевые дома из OSM)
     map.addSource("route-lodging", { type: "geojson", data: EMPTY_FC });
+    // Полигоны населённых пунктов — потенциальные места ночлега (под точками)
+    map.addSource("route-lodging-poly", { type: "geojson", data: EMPTY_FC });
+    map.addLayer({
+      id: "route-lodging-poly", type: "fill", source: "route-lodging-poly",
+      paint: { "fill-color": "#0d9488", "fill-opacity": 0.18 }
+    });
+    map.addLayer({
+      id: "route-lodging-poly-line", type: "line", source: "route-lodging-poly",
+      paint: { "line-color": "#0d9488", "line-width": 2, "line-dasharray": [2, 1.5] }
+    });
+    map.on("click", "route-lodging-poly", function (e) {
+      var name = e.features[0].properties.name;
+      new maplibregl.Popup({ offset: 6 })
+        .setLngLat(e.lngLat)
+        .setHTML("<b>🏘 " + escapeHtml(name || "Населённый пункт") + "</b><br>потенциальное место ночлега")
+        .addTo(map);
+    });
     map.addLayer({
       id: "route-lodging-pt", type: "circle", source: "route-lodging",
       paint: {
@@ -1761,8 +1779,25 @@
     hostel:         ["🛏", "Хостел"],
     hotel:          ["🏨", "Гостиница"],
     motel:          ["🏨", "Мотель"],
-    chalet:         ["🏡", "Домики (шале)"]
+    chalet:         ["🏡", "Домики (шале)"],
+    // Населённые пункты — потенциальные места ночлега (выделяются полигоном)
+    place_city:     ["🏙", "Город — потенц. ночлег"],
+    place_town:     ["🏘", "Город (посёлок) — потенц. ночлег"],
+    place_village:  ["🏘", "Село — потенц. ночлег"],
+    place_hamlet:   ["🛖", "Малое село — потенц. ночлег"]
   };
+
+  // Центр элемента Overpass (node / out center / out geom)
+  function elCenter(el) {
+    if (el.lon != null) return [el.lon, el.lat];
+    if (el.center) return [el.center.lon, el.center.lat];
+    if (el.geometry && el.geometry.length) {
+      var sx = 0, sy = 0, n = 0;
+      el.geometry.forEach(function (g) { if (g) { sx += g.lon; sy += g.lat; n++; } });
+      if (n) return [sx / n, sy / n];
+    }
+    return null;
+  }
 
   // Все линии построенного маршрута (авто + пеший + внедорожный) одним массивом
   function routeLineCoords() {
@@ -1792,10 +1827,17 @@
     }
     var poly = simp.map(function (c) { return c[1].toFixed(5) + "," + c[0].toFixed(5); }).join(",");
     var around = "(around:" + LODGING_RADIUS + "," + poly + ");";
+    // Два набора: объекты размещения (точки) и населённые пункты
+    // (точки списка + ГЕОМЕТРИЯ для полигонов: place-контуры и жилая застройка;
+    // только way, без relation — админ-границы городов огромны и не нужны)
     var q = "[out:json][timeout:25];(" +
             'nwr["tourism"~"^(camp_site|caravan_site|alpine_hut|wilderness_hut|guest_house|hostel|hotel|motel|chalet)$"]' + around +
             'nwr["amenity"="shelter"]' + around +
-            ");out center 80;";
+            ")->.l;.l out center 80;(" +
+            'node["place"~"^(city|town|village|hamlet)$"]' + around +
+            'way["place"~"^(city|town|village|hamlet)$"]' + around +
+            'way["landuse"="residential"]' + around +
+            ")->.s;.s out geom 60;";
     overpassFetch(q)
       .then(function (osm) {
         if (guard !== routeReq) return;
@@ -1803,27 +1845,47 @@
         var routeLS = turf.lineString(simp);
         var seen = {};
         var items = [];
+        var settleEls = []; // элементы с геометрией — для полигонов населённых пунктов
         (osm.elements || []).forEach(function (el) {
-          var lon = el.lon, lat = el.lat;
-          if (lon == null && el.center) { lon = el.center.lon; lat = el.center.lat; }
-          if (lon == null) return;
           var tags = el.tags || {};
-          var t = tags.tourism || (tags.amenity === "shelter" ? "shelter" : "");
+          // Жилая застройка без имени места — только подсветка полигоном, без строки списка
+          if (tags.landuse === "residential" && !tags.place) { settleEls.push(el); return; }
+          var t = tags.place ? "place_" + tags.place
+                             : (tags.tourism || (tags.amenity === "shelter" ? "shelter" : ""));
           if (!LODGING_TYPES[t]) return;
-          var key = t + "|" + lon.toFixed(4) + "|" + lat.toFixed(4); // дедупликация node/way
+          if (tags.place && el.type === "way") settleEls.push(el); // контур — в полигоны
+          var c = elCenter(el);
+          if (!c) return;
+          var name = tags["name:ru"] || tags.name || "";
+          // дедупликация: село часто есть и точкой (node place), и контуром (way place)
+          var key = tags.place && name ? "place|" + name
+                                       : t + "|" + c[0].toFixed(4) + "|" + c[1].toFixed(4);
           if (seen[key]) return;
           seen[key] = 1;
-          var np = turf.nearestPointOnLine(routeLS, turf.point([lon, lat]));
+          var np = turf.nearestPointOnLine(routeLS, turf.point(c));
           items.push({
-            lon: lon, lat: lat, type: t,
-            name: tags["name:ru"] || tags.name || "",
+            lon: c[0], lat: c[1], type: t,
+            name: name,
             alongM: (np.properties.location || 0) * 1000, // км от старта вдоль трека
             offM: (np.properties.dist || 0) * 1000        // удаление от трека
           });
         });
         items.sort(function (a, b) { return a.alongM - b.alongM; });
         if (items.length > 40) items = items.slice(0, 40);
-        if (items.length) {
+        // Полигоны населённых пунктов из геометрии Overpass (osmtogeojson понимает out geom)
+        var polyFeats = [];
+        try {
+          var gj = osmtogeojson({ elements: settleEls });
+          polyFeats = (gj.features || []).filter(function (f) {
+            return f.geometry && (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon");
+          }).map(function (f) {
+            var p = f.properties || {};
+            var nm = p["name:ru"] || p.name || (p.tags && (p.tags["name:ru"] || p.tags.name)) || "";
+            return { type: "Feature", properties: { name: nm }, geometry: f.geometry };
+          });
+        } catch (e) { /* без полигонов */ }
+        routeState.lodgingPolys = polyFeats;
+        if (items.length || polyFeats.length) {
           routeState.lodging = items;
           routeState.lodgingCollapsed = false;
           setLodgingFeatures();
@@ -1842,6 +1904,8 @@
   }
 
   function setLodgingFeatures() {
+    var psrc = map.getSource("route-lodging-poly");
+    if (psrc) psrc.setData({ type: "FeatureCollection", features: routeState.lodgingPolys || [] });
     var src = map.getSource("route-lodging");
     if (!src) return;
     src.setData({
@@ -1859,10 +1923,13 @@
 
   function clearLodging(rerender) {
     routeState.lodging = null;
+    routeState.lodgingPolys = null;
     routeState.lodgingError = null;
     routeState.lodgingLoading = false;
     var src = map.getSource("route-lodging");
     if (src) src.setData(EMPTY_FC);
+    var psrc = map.getSource("route-lodging-poly");
+    if (psrc) psrc.setData(EMPTY_FC);
     if (rerender) renderRoutePanel();
   }
 
