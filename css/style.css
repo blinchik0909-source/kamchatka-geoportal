@@ -518,6 +518,20 @@ html, body {
   font-size: 12px;
   color: #b91c1c;
 }
+.route-lodging-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px;
+  border: 1px solid #99d5cc;
+  border-radius: 6px;
+  background: #ecfaf7;
+  color: #0f766e;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+.route-lodging-btn:hover { background: #dcf5ef; }
+.route-lodging-item { cursor: pointer; }
+.route-lodging-item:hover { background: #f0fdfa; }
 .route-offroad-btn {
   width: 100%;
   margin-top: 4px;

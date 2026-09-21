@@ -823,7 +823,9 @@
     // Спешивание на «неизвестном» участке: геометрия участка, время езды по дорогам, точка спешивания
     unknownCoords: null, driveTimes: null, dismount: null, pickDismount: false, lastFeatures: [],
     // Внедорожный трек: результат, текст ошибки, точка «конца вычисляемого маршрута»
-    offroad: null, offroadError: null, cutoffPoint: null
+    offroad: null, offroadError: null, cutoffPoint: null,
+    // Места ночёвки вдоль маршрута (туристический атрибут): список/ошибка/загрузка
+    lodging: null, lodgingError: null, lodgingLoading: false
   };
   var routePanel = null;
 
@@ -938,6 +940,26 @@
       filter: ["==", ["get", "kind"], "straight"],
       paint: { "line-color": "#e8453c", "line-width": 3, "line-dasharray": [2, 2] }
     });
+    // Места ночёвки вдоль маршрута (кемпинги/приюты/гостевые дома из OSM)
+    map.addSource("route-lodging", { type: "geojson", data: EMPTY_FC });
+    map.addLayer({
+      id: "route-lodging-pt", type: "circle", source: "route-lodging",
+      paint: {
+        "circle-radius": 7, "circle-color": "#0d9488",
+        "circle-stroke-color": "#ffffff", "circle-stroke-width": 2
+      }
+    });
+    map.on("click", "route-lodging-pt", function (e) {
+      var p = e.features[0].properties;
+      new maplibregl.Popup({ offset: 10 })
+        .setLngLat(e.features[0].geometry.coordinates.slice(0, 2))
+        .setHTML("<b>" + p.icon + " " + escapeHtml(p.name || p.label) + "</b><br>" + escapeHtml(p.label) +
+                 "<br>" + fmtDist(p.along) + " от старта · " + fmtDist(p.off) + " от маршрута")
+        .addTo(map);
+    });
+    map.on("mouseenter", "route-lodging-pt", function () { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "route-lodging-pt", function () { map.getCanvas().style.cursor = ""; });
+
     map.addLayer({
       id: "route-ends", type: "circle", source: "route",
       filter: ["==", "$type", "Point"],
@@ -1167,6 +1189,7 @@
     routeState.offroadError = null;
     routeState.cutoffPoint = null;
     clearDismount(false);
+    clearLodging(false);
     renderRoutePanel("Прокладываю маршрут…");
     driveTo(o, d).then(function (car) {
       if (reqId !== routeReq) return;
@@ -1700,6 +1723,128 @@
     return path.reverse();
   }
 
+  // ============================================================
+  //  НОЧЁВКИ ВДОЛЬ МАРШРУТА (туристический атрибут карты)
+  //  Ищет в OSM (Overpass) места, где потенциально можно переночевать,
+  //  в коридоре вдоль построенного маршрута; показывает точками на карте
+  //  и списком в панели с километражом от старта.
+  // ============================================================
+  var LODGING_RADIUS = 3000; // м: коридор поиска по обе стороны от трека
+  var LODGING_TYPES = {
+    camp_site:      ["🏕", "Кемпинг"],
+    caravan_site:   ["🚐", "Стоянка автодомов"],
+    alpine_hut:     ["🏔", "Горный приют"],
+    wilderness_hut: ["🛖", "Изба (приют)"],
+    shelter:        ["⛺", "Укрытие"],
+    guest_house:    ["🏡", "Гостевой дом"],
+    hostel:         ["🛏", "Хостел"],
+    hotel:          ["🏨", "Гостиница"],
+    motel:          ["🏨", "Мотель"],
+    chalet:         ["🏡", "Домики (шале)"]
+  };
+
+  // Все линии построенного маршрута (авто + пеший + внедорожный) одним массивом
+  function routeLineCoords() {
+    var out = [];
+    (routeState.lastFeatures || []).forEach(function (f) {
+      if (f.geometry && f.geometry.type === "LineString") {
+        f.geometry.coordinates.forEach(function (c) { out.push([c[0], c[1]]); });
+      }
+    });
+    return out;
+  }
+
+  function runLodging() {
+    var line = routeLineCoords();
+    if (line.length < 2) return;
+    var guard = routeReq; // новый маршрут/очистка отменяет запрос
+    routeState.lodgingLoading = true;
+    routeState.lodgingError = null;
+    renderRoutePanel();
+    // Упрощаем линию, чтобы запрос Overpass не разросся (≤ ~60 точек)
+    var simp = line;
+    try {
+      simp = turf.simplify(turf.lineString(line), { tolerance: 0.02, highQuality: false }).geometry.coordinates;
+    } catch (e) { /* оставляем как есть */ }
+    while (simp.length > 60) {
+      simp = simp.filter(function (_, i) { return i % 2 === 0 || i === simp.length - 1; });
+    }
+    var poly = simp.map(function (c) { return c[1].toFixed(5) + "," + c[0].toFixed(5); }).join(",");
+    var around = "(around:" + LODGING_RADIUS + "," + poly + ");";
+    var q = "[out:json][timeout:25];(" +
+            'nwr["tourism"~"^(camp_site|caravan_site|alpine_hut|wilderness_hut|guest_house|hostel|hotel|motel|chalet)$"]' + around +
+            'nwr["amenity"="shelter"]' + around +
+            ");out center 80;";
+    fetch(osmEndpoint, { method: "POST", body: "data=" + encodeURIComponent(q) })
+      .then(function (r) { return r.json(); })
+      .then(function (osm) {
+        if (guard !== routeReq) return;
+        routeState.lodgingLoading = false;
+        var routeLS = turf.lineString(simp);
+        var seen = {};
+        var items = [];
+        (osm.elements || []).forEach(function (el) {
+          var lon = el.lon, lat = el.lat;
+          if (lon == null && el.center) { lon = el.center.lon; lat = el.center.lat; }
+          if (lon == null) return;
+          var tags = el.tags || {};
+          var t = tags.tourism || (tags.amenity === "shelter" ? "shelter" : "");
+          if (!LODGING_TYPES[t]) return;
+          var key = t + "|" + lon.toFixed(4) + "|" + lat.toFixed(4); // дедупликация node/way
+          if (seen[key]) return;
+          seen[key] = 1;
+          var np = turf.nearestPointOnLine(routeLS, turf.point([lon, lat]));
+          items.push({
+            lon: lon, lat: lat, type: t,
+            name: tags["name:ru"] || tags.name || "",
+            alongM: (np.properties.location || 0) * 1000, // км от старта вдоль трека
+            offM: (np.properties.dist || 0) * 1000        // удаление от трека
+          });
+        });
+        items.sort(function (a, b) { return a.alongM - b.alongM; });
+        if (items.length > 40) items = items.slice(0, 40);
+        if (items.length) {
+          routeState.lodging = items;
+          setLodgingFeatures();
+        } else {
+          routeState.lodging = null;
+          routeState.lodgingError = "Вдоль маршрута мест ночёвки в OSM не найдено (коридор " + fmtDist(LODGING_RADIUS) + ").";
+        }
+        renderRoutePanel();
+      })
+      .catch(function () {
+        if (guard !== routeReq) return;
+        routeState.lodgingLoading = false;
+        routeState.lodgingError = "Не удалось загрузить места ночёвки (Overpass).";
+        renderRoutePanel();
+      });
+  }
+
+  function setLodgingFeatures() {
+    var src = map.getSource("route-lodging");
+    if (!src) return;
+    src.setData({
+      type: "FeatureCollection",
+      features: (routeState.lodging || []).map(function (it, i) {
+        var tp = LODGING_TYPES[it.type];
+        return {
+          type: "Feature",
+          properties: { idx: i, icon: tp[0], label: tp[1], name: it.name, along: it.alongM, off: it.offM },
+          geometry: { type: "Point", coordinates: [it.lon, it.lat] }
+        };
+      })
+    });
+  }
+
+  function clearLodging(rerender) {
+    routeState.lodging = null;
+    routeState.lodgingError = null;
+    routeState.lodgingLoading = false;
+    var src = map.getSource("route-lodging");
+    if (src) src.setData(EMPTY_FC);
+    if (rerender) renderRoutePanel();
+  }
+
   function assemble(reqId, car, foot, dest) {
     if (reqId !== routeReq) return;
     var features = [], stats = {};
@@ -1780,6 +1925,7 @@
   }
 
   function clearRoute() {
+    clearLodging(false);
     routeState.dest = null;
     routeState.pickMode = false;
     routeState.lastResult = null;
@@ -1900,6 +2046,30 @@
             html += '<button type="button" class="route-offroad-btn" data-act="offroad">🚜 Проложить внедорожный трек (эксперимент)</button>';
           }
         }
+        // Ночёвки вдоль маршрута (туристический атрибут карты)
+        if (routeState.lodgingLoading) {
+          html += '<div class="route-card-note">Ищу места ночёвки вдоль маршрута…</div>';
+        } else if (routeState.lodging) {
+          html += '<div class="route-card">' +
+                  '<div class="route-card-head"><span class="route-chip" style="background:#0d9488"></span>' +
+                  '<span class="route-card-name">🏕 Ночёвки по маршруту</span>' +
+                  '<span class="route-card-dist">' + routeState.lodging.length + '</span></div>';
+          routeState.lodging.slice(0, 12).forEach(function (it, i) {
+            var tp = LODGING_TYPES[it.type];
+            html += '<div class="route-kv route-lodging-item" data-idx="' + i + '" title="Показать на карте"><span>' +
+                    tp[0] + " " + escapeHtml(it.name || tp[1]) + "</span><b>" + fmtDist(it.alongM) + "</b></div>";
+          });
+          if (routeState.lodging.length > 12) {
+            html += '<div class="route-card-note">и ещё ' + (routeState.lodging.length - 12) + ' — все показаны точками на карте</div>';
+          }
+          html += '<div class="route-card-note">км — от старта по маршруту; данные OSM — наличие мест не гарантировано</div></div>';
+          html += '<button type="button" class="route-lodging-btn" data-act="lodging-clear">✖ Скрыть ночёвки</button>';
+        } else {
+          if (routeState.lodgingError) {
+            html += '<div class="route-card-note">' + escapeHtml(routeState.lodgingError) + "</div>";
+          }
+          html += '<button type="button" class="route-lodging-btn" data-act="lodging">🏕 Найти ночёвки по маршруту</button>';
+        }
       }
     }
     html += '<button type="button" class="route-clear">Очистить маршрут</button>';
@@ -1936,6 +2106,18 @@
         var act = b.getAttribute("data-act");
         if (act === "offroad") runOffroad();
         else if (act === "offroad-clear") clearOffroad();
+      };
+    });
+    routePanel.querySelectorAll(".route-lodging-btn").forEach(function (b) {
+      b.onclick = function () {
+        if (b.getAttribute("data-act") === "lodging") runLodging();
+        else clearLodging(true);
+      };
+    });
+    routePanel.querySelectorAll(".route-lodging-item").forEach(function (el) {
+      el.onclick = function () {
+        var it = (routeState.lodging || [])[parseInt(el.getAttribute("data-idx"), 10)];
+        if (it) map.flyTo({ center: [it.lon, it.lat], zoom: 13 });
       };
     });
   }
