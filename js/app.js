@@ -1327,12 +1327,33 @@
     return { coords: outC, messages: outM };
   }
 
+  // Запрос к Overpass с перебором зеркал: основной эндпоинт (из config)
+  // периодически недоступен — пробуем публичные зеркала по очереди
+  var OVERPASS_FALLBACKS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter"
+  ];
+  function overpassFetch(query) {
+    var urls = [osmEndpoint].concat(OVERPASS_FALLBACKS.filter(function (u) { return u !== osmEndpoint; }));
+    var i = 0;
+    function tryNext() {
+      if (i >= urls.length) return Promise.reject(new Error("overpass unavailable"));
+      var u = urls[i++];
+      return fetch(u, { method: "POST", body: "data=" + encodeURIComponent(query) })
+        .then(function (r) {
+          if (!r.ok) throw new Error("http " + r.status);
+          return r.json();
+        })
+        .catch(function () { return tryNext(); });
+    }
+    return tryNext();
+  }
+
   // Ближайшая к точке вершина проезжей дороги/просёлка (OSM через Overpass)
   function nearestRoadPoint(pt, radius) {
     var q = "[out:json][timeout:15];way(around:" + (radius || 15000) + "," + pt[1] + "," + pt[0] +
             ')["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|track|road)$"];out geom;';
-    return fetch(osmEndpoint, { method: "POST", body: "data=" + encodeURIComponent(q) })
-      .then(function (r) { return r.json(); })
+    return overpassFetch(q)
       .then(function (osm) {
         var best = null, bd = Infinity;
         (osm.elements || []).forEach(function (el) {
@@ -1603,8 +1624,7 @@
             'relation["natural"~"^(water|wetland)$"](' + bb + ');' +
             'way["natural"="cliff"](' + bb + ');' +
             ');out geom;';
-    return fetch(osmEndpoint, { method: "POST", body: "data=" + encodeURIComponent(q) })
-      .then(function (r) { return r.json(); })
+    return overpassFetch(q)
       .then(function (osm) { return osmtogeojson(osm); })
       .catch(function () { return null; }); // без препятствий считаем по одному рельефу
   }
@@ -1775,8 +1795,7 @@
             'nwr["tourism"~"^(camp_site|caravan_site|alpine_hut|wilderness_hut|guest_house|hostel|hotel|motel|chalet)$"]' + around +
             'nwr["amenity"="shelter"]' + around +
             ");out center 80;";
-    fetch(osmEndpoint, { method: "POST", body: "data=" + encodeURIComponent(q) })
-      .then(function (r) { return r.json(); })
+    overpassFetch(q)
       .then(function (osm) {
         if (guard !== routeReq) return;
         routeState.lodgingLoading = false;

@@ -23,7 +23,7 @@
 
 ### Карта файлов
 ```
-index.html            # разметка; версии статики через ?v=NN (сейчас v=37)
+index.html            # разметка; версии статики через ?v=NN (сейчас v=38)
 css/style.css         # стили (в т.ч. панель маршрута .route-*)
 js/config.js          # КОНФИГ: подложки, тематические слои, OSM-слои, поля попапа
 js/app.js             # движок: карта, слои, попапы, измерения, МАРШРУТИЗАЦИЯ
@@ -172,6 +172,10 @@ wilderness_hut|guest_house|hostel|hotel|motel|chalet] + amenity=shelter в ко�
 (≤12 строк, клик → flyTo). Состояние routeState.lodging/lodgingError/lodgingLoading,
 типы и иконки — LODGING_TYPES; сброс в computeRoute/clearRoute (clearLodging).
 Лимит 40 мест, дедупликация по типу+координатам.
+ВАЖНО (v=38): все Overpass-запросы маршрутизации (nearestRoadPoint,
+loadObstacles, runLodging) идут через `overpassFetch` — перебор зеркал:
+основной osmEndpoint (maps.mail.ru из config) периодически недоступен,
+тогда пробуются overpass-api.de и overpass.kumi.systems (OVERPASS_FALLBACKS).
 
 Ориентиры из отчётов туристов (сентябрь 2026, перепроверка по форумам/блогам):
 - ПКЦ→Козыревск: 470–500 км (300 асфальт + 170 гравий) — 7–9 ч (модель: ~8.4 ч ✓);
@@ -206,7 +210,7 @@ wilderness_hut|guest_house|hostel|hotel|motel|chalet] + amenity=shelter в ко�
 - Достопримечательности обогащены геологией (Подразделение/Описание/Индекс) через
   пространственное соединение с `geology.geojson`.
 - OSM-слои (вкладка «Карт. основа») грузятся по видимой области с индивидуальным `minZoom`.
-- При изменении статики поднимать `?v=NN` в `index.html` (сейчас **v=37**), чтобы сбросить кэш.
+- При изменении статики поднимать `?v=NN` в `index.html` (сейчас **v=38**), чтобы сбросить кэш.
 
 ---
 
