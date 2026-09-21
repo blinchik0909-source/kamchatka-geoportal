@@ -23,7 +23,7 @@
 
 ### Карта файлов
 ```
-index.html            # разметка; версии статики через ?v=NN (сейчас v=38)
+index.html            # разметка; версии статики через ?v=NN (сейчас v=39)
 css/style.css         # стили (в т.ч. панель маршрута .route-*)
 js/config.js          # КОНФИГ: подложки, тематические слои, OSM-слои, поля попапа
 js/app.js             # движок: карта, слои, попапы, измерения, МАРШРУТИЗАЦИЯ
@@ -172,6 +172,11 @@ wilderness_hut|guest_house|hostel|hotel|motel|chalet] + amenity=shelter в ко�
 (≤12 строк, клик → flyTo). Состояние routeState.lodging/lodgingError/lodgingLoading,
 типы и иконки — LODGING_TYPES; сброс в computeRoute/clearRoute (clearLodging).
 Лимит 40 мест, дедупликация по типу+координатам.
+UI (v=39): дистанция до цели показывается ОДИН раз строкой .route-bd-dist над
+карточками транспорта (у вахтовки/вездехода она всегда одинакова —
+дубли .route-card-sub убраны); карточка ночёвок сворачивается кликом по
+шапке (.route-toggle, data-toggle=lodging, стрелка ▾/▸, состояние
+routeState.lodgingCollapsed; механизм готов для других длинных карточек).
 ВАЖНО (v=38): все Overpass-запросы маршрутизации (nearestRoadPoint,
 loadObstacles, runLodging) идут через `overpassFetch` — перебор зеркал:
 основной osmEndpoint (maps.mail.ru из config) периодически недоступен,
@@ -210,7 +215,7 @@ loadObstacles, runLodging) идут через `overpassFetch` — перебо�
 - Достопримечательности обогащены геологией (Подразделение/Описание/Индекс) через
   пространственное соединение с `geology.geojson`.
 - OSM-слои (вкладка «Карт. основа») грузятся по видимой области с индивидуальным `minZoom`.
-- При изменении статики поднимать `?v=NN` в `index.html` (сейчас **v=38**), чтобы сбросить кэш.
+- При изменении статики поднимать `?v=NN` в `index.html` (сейчас **v=39**), чтобы сбросить кэш.
 
 ---
 

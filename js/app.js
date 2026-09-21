@@ -824,8 +824,8 @@
     unknownCoords: null, driveTimes: null, dismount: null, pickDismount: false, lastFeatures: [],
     // Внедорожный трек: результат, текст ошибки, точка «конца вычисляемого маршрута»
     offroad: null, offroadError: null, cutoffPoint: null,
-    // Места ночёвки вдоль маршрута (туристический атрибут): список/ошибка/загрузка
-    lodging: null, lodgingError: null, lodgingLoading: false
+    // Места ночёвки вдоль маршрута (туристический атрибут): список/ошибка/загрузка/свёрнутость
+    lodging: null, lodgingError: null, lodgingLoading: false, lodgingCollapsed: false
   };
   var routePanel = null;
 
@@ -1824,6 +1824,7 @@
         if (items.length > 40) items = items.slice(0, 40);
         if (items.length) {
           routeState.lodging = items;
+          routeState.lodgingCollapsed = false;
           setLodgingFeatures();
         } else {
           routeState.lodging = null;
@@ -1980,6 +1981,10 @@
                 'До цели по прямой: <b>' + fmtDist(result.totDist) + '</b>.</div>';
       } else if (result.breakdown && result.breakdown.length) {
         html += '<div class="route-breakdown"><div class="route-bd-title">Время в пути:</div>';
+        // Дистанция одинакова для всех видов транспорта — показываем ОДИН раз
+        if (result.totDist) {
+          html += '<div class="route-bd-dist">📏 ' + fmtDist(result.totDist) + ' до цели</div>';
+        }
         result.breakdown.forEach(function (b) {
           var icon = VEHICLE_ICONS[b.phase] || "🚗";
           var chip = '<span class="route-chip" style="background:' + (VEHICLE_COLORS[b.phase] || "#8894a3") + '"></span>';
@@ -2000,12 +2005,12 @@
             if (b.note) html += '<div class="route-card-note">' + escapeHtml(b.note) + "</div>";
             html += "</div>";
           } else {
-            // Карточка транспорта: название + полное время, ниже — дистанция
+            // Карточка транспорта: название + полное время
+            // (дистанция общая для всех — вынесена одной строкой выше, .route-bd-dist)
             html += '<div class="route-card">' +
                     '<div class="route-card-head">' + chip +
                     '<span class="route-card-name">' + icon + " " + escapeHtml(b.phase) + "</span>" +
-                    '<b class="route-card-time">' + fmtDur(b.time) + "</b></div>" +
-                    '<div class="route-card-sub">' + fmtDist(b.dist) + " до цели</div></div>";
+                    '<b class="route-card-time">' + fmtDur(b.time) + "</b></div></div>";
           }
         });
         html += "</div>";
@@ -2069,20 +2074,28 @@
         if (routeState.lodgingLoading) {
           html += '<div class="route-card-note">Ищу места ночёвки вдоль маршрута…</div>';
         } else if (routeState.lodging) {
+          // Сворачиваемая карточка: клик по шапке прячет/раскрывает длинный список
+          var lodColl = routeState.lodgingCollapsed;
           html += '<div class="route-card">' +
-                  '<div class="route-card-head"><span class="route-chip" style="background:#0d9488"></span>' +
+                  '<div class="route-card-head route-toggle" data-toggle="lodging" title="' +
+                  (lodColl ? "Развернуть" : "Свернуть") + '"><span class="route-chip" style="background:#0d9488"></span>' +
                   '<span class="route-card-name">🏕 Ночёвки по маршруту</span>' +
-                  '<span class="route-card-dist">' + routeState.lodging.length + '</span></div>';
-          routeState.lodging.slice(0, 12).forEach(function (it, i) {
-            var tp = LODGING_TYPES[it.type];
-            html += '<div class="route-kv route-lodging-item" data-idx="' + i + '" title="Показать на карте"><span>' +
-                    tp[0] + " " + escapeHtml(it.name || tp[1]) + "</span><b>" + fmtDist(it.alongM) + "</b></div>";
-          });
-          if (routeState.lodging.length > 12) {
-            html += '<div class="route-card-note">и ещё ' + (routeState.lodging.length - 12) + ' — все показаны точками на карте</div>';
+                  '<span class="route-card-dist">' + routeState.lodging.length + " " + (lodColl ? "▸" : "▾") + '</span></div>';
+          if (!lodColl) {
+            routeState.lodging.slice(0, 12).forEach(function (it, i) {
+              var tp = LODGING_TYPES[it.type];
+              html += '<div class="route-kv route-lodging-item" data-idx="' + i + '" title="Показать на карте"><span>' +
+                      tp[0] + " " + escapeHtml(it.name || tp[1]) + "</span><b>" + fmtDist(it.alongM) + "</b></div>";
+            });
+            if (routeState.lodging.length > 12) {
+              html += '<div class="route-card-note">и ещё ' + (routeState.lodging.length - 12) + ' — все показаны точками на карте</div>';
+            }
+            html += '<div class="route-card-note">км — от старта по маршруту; данные OSM — наличие мест не гарантировано</div>';
           }
-          html += '<div class="route-card-note">км — от старта по маршруту; данные OSM — наличие мест не гарантировано</div></div>';
-          html += '<button type="button" class="route-lodging-btn" data-act="lodging-clear">✖ Скрыть ночёвки</button>';
+          html += '</div>';
+          if (!lodColl) {
+            html += '<button type="button" class="route-lodging-btn" data-act="lodging-clear">✖ Скрыть ночёвки</button>';
+          }
         } else {
           if (routeState.lodgingError) {
             html += '<div class="route-card-note">' + escapeHtml(routeState.lodgingError) + "</div>";
@@ -2137,6 +2150,15 @@
       el.onclick = function () {
         var it = (routeState.lodging || [])[parseInt(el.getAttribute("data-idx"), 10)];
         if (it) map.flyTo({ center: [it.lon, it.lat], zoom: 13 });
+      };
+    });
+    // Сворачивание/разворачивание длинных карточек по клику на шапку
+    routePanel.querySelectorAll(".route-toggle").forEach(function (el) {
+      el.onclick = function () {
+        if (el.getAttribute("data-toggle") === "lodging") {
+          routeState.lodgingCollapsed = !routeState.lodgingCollapsed;
+        }
+        renderRoutePanel();
       };
     });
   }
