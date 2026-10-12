@@ -174,6 +174,25 @@ window.PORTAL_CONFIG = {
       visible: false
     },
     {
+      id: "plates",
+      name: "Границы литосферных плит",
+      geojson: "data/plate_boundaries.geojson",
+      geom: "line",
+      color: "#d81b60",
+      visible: false,
+      // Пунктирная линия границ (данные: Peter Bird, PB2002, обрезаны по региону Камчатки)
+      line: { width: 3, dasharray: [2, 1.5] },
+      popup: {
+        titleField: "name",
+        typeField: "тип",
+        fieldLabels: {
+          "плита_1": "Литосферная плита 1",
+          "плита_2": "Литосферная плита 2",
+          "источник": "Источник данных"
+        }
+      }
+    },
+    {
       id: "dostoprim",
       name: "Достопримечательности",
       geojson: "data/dostoprimechatelnosti.geojson",

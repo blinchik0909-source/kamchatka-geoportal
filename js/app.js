@@ -422,6 +422,44 @@
     return html;
   }
 
+  // Линейный тематический слой (например, границы литосферных плит)
+  function addLineLayer(layerCfg, geojson, pcfg) {
+    var srcId = "src-" + layerCfg.id;
+    var lyrId = "lyr-" + layerCfg.id;
+    var visible = layerCfg.visible !== false;
+    var ln = layerCfg.line || {};
+
+    map.addSource(srcId, { type: "geojson", data: geojson });
+    var paint = {
+      "line-color": layerCfg.color,
+      "line-width": ln.width != null ? ln.width : 3,
+      "line-opacity": ln.opacity != null ? ln.opacity : 0.9
+    };
+    if (ln.dasharray) paint["line-dasharray"] = ln.dasharray;
+    map.addLayer({
+      id: lyrId, type: "line", source: srcId,
+      layout: { visibility: visible ? "visible" : "none", "line-join": "round", "line-cap": "round" },
+      paint: paint
+    });
+
+    map.on("click", lyrId, function (e) {
+      if (measureActive) return;
+      var f = e.features[0];
+      showPopup(e.lngLat, buildPopupHtml(f.properties, pcfg, null));
+    });
+    map.on("mouseenter", lyrId, function () { if (!measureActive) map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", lyrId, function () { if (!measureActive) map.getCanvas().style.cursor = ""; });
+
+    overlay[layerCfg.id] = {
+      kind: "simple",
+      visible: visible,
+      setVisible: function (v) {
+        this.visible = v;
+        map.setLayoutProperty(lyrId, "visibility", v ? "visible" : "none");
+      }
+    };
+  }
+
   function addPolygonLayer(layerCfg, geojson, pcfg) {
     var srcId = "src-" + layerCfg.id;
     var fillId = "lyr-" + layerCfg.id + "-fill";
@@ -514,6 +552,7 @@
           var pcfg = layerCfg.popup || POPUP;
           var categorized = !!(layerCfg.marker && layerCfg.marker.shape === "star" && layerCfg.marker.colors);
           if (layerCfg.geom === "polygon") addPolygonLayer(layerCfg, geojson, pcfg);
+          else if (layerCfg.geom === "line") addLineLayer(layerCfg, geojson, pcfg);
           else if (categorized) addCategorizedLayer(layerCfg, geojson, pcfg);
           else addSimpleLayer(layerCfg, geojson, pcfg);
         })
@@ -558,6 +597,7 @@
         var swatch = document.createElement("span");
         swatch.className = "swatch";
         swatch.style.background = layerCfg.color;
+        if (layerCfg.geom === "line") { swatch.style.borderRadius = "2px"; swatch.style.height = "4px"; }
         row.appendChild(swatch);
       }
       row.appendChild(span);
